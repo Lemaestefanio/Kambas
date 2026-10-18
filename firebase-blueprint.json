@@ -1,0 +1,110 @@
+{
+  "entities": {
+    "Creator": {
+      "title": "Creator",
+      "description": "Profile, photos, bio and settings of an agency model in the platform",
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier of the creator"
+        },
+        "name": {
+          "type": "string",
+          "description": "Full display name of the model"
+        },
+        "shortName": {
+          "type": "string",
+          "description": "First name of the model"
+        },
+        "handle": {
+          "type": "string",
+          "description": "Social handle"
+        },
+        "age": {
+          "type": "number",
+          "description": "Age of the model"
+        },
+        "city": {
+          "type": "string",
+          "description": "City and country"
+        },
+        "neighborhood": {
+          "type": "string",
+          "description": "Neighborhood in Luanda"
+        },
+        "verified": {
+          "type": "boolean",
+          "description": "Whether the creator is verified"
+        },
+        "isOnline": {
+          "type": "boolean",
+          "description": "Online status"
+        },
+        "avatar": {
+          "type": "string",
+          "description": "URL or data string of the model profile picture"
+        },
+        "banner": {
+          "type": "string",
+          "description": "URL or data string of the banner picture"
+        },
+        "bio": {
+          "type": "string",
+          "description": "Bio text"
+        },
+        "whatsappNumber": {
+          "type": "string",
+          "description": "Direct WhatsApp contact number"
+        },
+        "incomingMessage": {
+          "type": "string",
+          "description": "Welcome message shown to users"
+        },
+        "updatedAt": {
+          "type": "string",
+          "description": "ISO timestamp of last update"
+        }
+      },
+      "required": ["id", "name", "avatar"]
+    },
+    "AgencyPhoto": {
+      "title": "AgencyPhoto",
+      "description": "Real photo asset stored in the database for models and gallery",
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique ID of photo"
+        },
+        "creatorId": {
+          "type": "string",
+          "description": "Model ID this photo belongs to"
+        },
+        "url": {
+          "type": "string",
+          "description": "Image URL or data URI"
+        },
+        "caption": {
+          "type": "string",
+          "description": "Caption or note"
+        },
+        "createdAt": {
+          "type": "string",
+          "description": "ISO timestamp"
+        }
+      },
+      "required": ["id", "creatorId", "url"]
+    }
+  },
+  "firestore": {
+    "/creators/{creatorId}": {
+      "schema": "Creator",
+      "description": "Collection of all agency models profiles and media links"
+    },
+    "/photos/{photoId}": {
+      "schema": "AgencyPhoto",
+      "description": "Collection of real photos uploaded by the agency"
+    }
+  }
+}

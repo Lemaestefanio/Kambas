@@ -1,0 +1,6 @@
+{
+  "name": "Sandra Gomes VIP · Portal Exclusivo",
+  "description": "Portal VIP exclusivo da criadora Sandra Gomes com conteúdos premium, feed multimédia, planos em Kwanzas (Kz) e acesso seguro.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
