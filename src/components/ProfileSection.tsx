@@ -1,3 +1,5 @@
+import { useSiteContent } from '../cms/SiteContent';
+import { CoverMedia } from './CoverMedia';
 import React, { useState, useEffect } from 'react';
 import { CheckCircle2, Star, MessageCircle, Share2, MapPin, Sparkles } from 'lucide-react';
 import { Creator } from '../types';
@@ -12,6 +14,17 @@ interface ProfileSectionProps {
   onShare?: () => void;
 }
 
+function useCurrentMedia(source: string) {
+  const [local, setLocal] = useState<{ source: string; url: string } | null>(null);
+  useEffect(() => {
+    if (!source.startsWith('idb://')) return;
+    let active = true;
+    void getMediaUrl(source).then(url => { if (active) setLocal({ source, url }); }).catch(() => {});
+    return () => { active = false; };
+  }, [source]);
+  return source.startsWith('idb://') ? local?.source === source ? local.url : '' : source;
+}
+
 export const ProfileSection: React.FC<ProfileSectionProps> = ({
   creator,
   onOpenStory,
@@ -19,26 +32,11 @@ export const ProfileSection: React.FC<ProfileSectionProps> = ({
   onSelectTab,
   onShare,
 }) => {
+  const { copy } = useSiteContent();
   const [isExpanded, setIsExpanded] = useState(false);
   const [isFavorite, setIsFavorite] = useState(false);
   const [showShareNotification, setShowShareNotification] = useState(false);
-  const [resolvedBanner, setResolvedBanner] = useState(creator.banner);
-  const [resolvedBannerVideo, setResolvedBannerVideo] = useState(creator.bannerVideo || '');
-  const [resolvedAvatar, setResolvedAvatar] = useState(creator.avatar);
-
-  useEffect(() => {
-    let active = true;
-    getMediaUrl(creator.banner).then((u) => active && setResolvedBanner(u));
-    if (creator.bannerVideo) {
-      getMediaUrl(creator.bannerVideo).then((u) => active && setResolvedBannerVideo(u));
-    } else {
-      setResolvedBannerVideo('');
-    }
-    getMediaUrl(creator.avatar).then((u) => active && setResolvedAvatar(u));
-    return () => {
-      active = false;
-    };
-  }, [creator.banner, creator.bannerVideo, creator.avatar]);
+  const resolvedAvatar = useCurrentMedia(creator.avatar || '');
 
   const handleShareClick = () => {
     if (onShare) {
@@ -47,8 +45,8 @@ export const ProfileSection: React.FC<ProfileSectionProps> = ({
     }
     if (navigator.share) {
       navigator.share({
-        title: `${creator.name} · OnlyFans Oficial`,
-        text: `Acede ao perfil oficial da ${creator.shortName} em Luanda!`,
+        title: copy('home.profile.shareTitle', { name: creator.name }),
+        text: copy('home.profile.shareText', { name: creator.shortName }),
         url: window.location.href,
       }).catch(() => {});
     } else {
@@ -58,36 +56,10 @@ export const ProfileSection: React.FC<ProfileSectionProps> = ({
     }
   };
 
-  const isVideoCover =
-    Boolean(resolvedBannerVideo) ||
-    resolvedBanner.includes('.mp4') ||
-    resolvedBanner.includes('video/');
-
   return (
     <section className="bg-white border-b border-slate-200/80">
       {/* Cover Banner (Supports Photo or Looping Video Cover) */}
-      <div className="relative h-[190px] sm:h-[220px] w-full overflow-hidden bg-slate-200">
-        {isVideoCover ? (
-          <video
-            src={resolvedBannerVideo || resolvedBanner}
-            autoPlay
-            loop
-            muted
-            playsInline
-            className="w-full h-full object-cover select-none pointer-events-none"
-          />
-        ) : (
-          <img
-            src={resolvedBanner}
-            alt={`Capa de ${creator.name}`}
-            loading="lazy"
-            decoding="async"
-            className="w-full h-full object-cover select-none pointer-events-none"
-            draggable={false}
-          />
-        )}
-        <div className="absolute inset-0 bg-gradient-to-t from-black/25 via-transparent to-black/10" />
-      </div>
+      <CoverMedia key={creator.id} creator={creator} alt={copy('home.profile.cover', { name: creator.name })} />
 
       {/* Profile Details Container */}
       <div className="px-4 pb-4 relative">
@@ -97,9 +69,11 @@ export const ProfileSection: React.FC<ProfileSectionProps> = ({
           <div className="relative group">
             <div className="w-[96px] h-[96px] rounded-full border-[4px] border-white overflow-hidden bg-white shadow-lg relative">
               <img
-                src={resolvedAvatar}
+                key={resolvedAvatar || creator.avatar}
+                src={resolvedAvatar || undefined}
                 alt={creator.name}
-                loading="lazy"
+                loading="eager"
+                fetchPriority="high"
                 decoding="async"
                 className="w-full h-full object-cover select-none pointer-events-none"
                 draggable={false}
@@ -109,7 +83,7 @@ export const ProfileSection: React.FC<ProfileSectionProps> = ({
             {creator.isOnline && (
               <span
                 className="absolute bottom-1 right-1 w-4 h-4 rounded-full bg-emerald-500 border-[2.5px] border-white shadow-xs"
-                title="Online agora"
+                title={copy('home.profile.online')}
               />
             )}
           </div>
@@ -119,10 +93,10 @@ export const ProfileSection: React.FC<ProfileSectionProps> = ({
             <button
               onClick={onOpenChat}
               className="h-9 px-3.5 rounded-full bg-[#00aff0] hover:bg-[#009ed9] text-white flex items-center gap-1.5 text-xs font-bold transition-all shadow-sm active:scale-95"
-              title="Conversar no Chat Privado"
+              title={copy('home.profile.chat')}
             >
               <MessageCircle className="h-4 w-4" />
-              <span>Mensagem</span>
+              <span>{copy('home.profile.message')}</span>
             </button>
 
             <button
@@ -132,8 +106,8 @@ export const ProfileSection: React.FC<ProfileSectionProps> = ({
                   ? 'bg-amber-50 text-amber-500 border-amber-300 ring-1 ring-amber-300'
                   : 'border-slate-200 text-slate-600 hover:text-slate-900 hover:bg-slate-50'
               }`}
-              aria-label="Adicionar aos favoritos"
-              title={isFavorite ? 'Favoritada' : 'Adicionar aos favoritos'}
+              aria-label={copy('home.profile.favorite')}
+              title={isFavorite ? copy('home.profile.favorited') : copy('home.profile.favorite')}
             >
               <Star className={`h-4 w-4 ${isFavorite ? 'fill-amber-400 text-amber-400' : ''}`} />
             </button>
@@ -141,8 +115,8 @@ export const ProfileSection: React.FC<ProfileSectionProps> = ({
             <button
               onClick={handleShareClick}
               className="w-9 h-9 rounded-full border border-slate-200 text-slate-600 hover:text-slate-900 hover:bg-slate-50 flex items-center justify-center transition-all shadow-xs"
-              aria-label="Partilhar perfil"
-              title="Partilhar perfil"
+              aria-label={copy('home.profile.share')}
+              title={copy('home.profile.share')}
             >
               <Share2 className="h-4 w-4" />
             </button>
@@ -152,7 +126,7 @@ export const ProfileSection: React.FC<ProfileSectionProps> = ({
         {/* Feedback toast when copying link */}
         {showShareNotification && (
           <div className="mb-2 p-2 rounded-lg bg-slate-900 text-white text-xs font-medium text-center animate-fade-in">
-            Link copiado para a área de transferência!
+            {copy('home.profile.copied')}
           </div>
         )}
 
@@ -175,7 +149,7 @@ export const ProfileSection: React.FC<ProfileSectionProps> = ({
           <span>·</span>
           <span className="text-emerald-600 font-semibold flex items-center gap-1">
             <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
-            Disponível agora
+            {copy('home.profile.available')}
           </span>
         </div>
 
@@ -189,7 +163,7 @@ export const ProfileSection: React.FC<ProfileSectionProps> = ({
               {creator.postCount}
             </span>
             <span className="text-[10px] text-slate-500 uppercase tracking-wider font-medium">
-              Posts
+              {copy('home.profile.posts')}
             </span>
           </button>
 
@@ -201,7 +175,7 @@ export const ProfileSection: React.FC<ProfileSectionProps> = ({
               {creator.stats.photos}
             </span>
             <span className="text-[10px] text-slate-500 uppercase tracking-wider font-medium">
-              Fotos
+              {copy('home.profile.photos')}
             </span>
           </button>
 
@@ -213,7 +187,7 @@ export const ProfileSection: React.FC<ProfileSectionProps> = ({
               {creator.stats.videos}
             </span>
             <span className="text-[10px] text-slate-500 uppercase tracking-wider font-medium">
-              Vídeos
+              {copy('home.profile.videos')}
             </span>
           </button>
 
@@ -222,7 +196,7 @@ export const ProfileSection: React.FC<ProfileSectionProps> = ({
               {creator.stats.likes}
             </span>
             <span className="text-[10px] text-slate-500 uppercase tracking-wider font-medium">
-              Likes
+              {copy('home.profile.likes')}
             </span>
           </div>
         </div>
@@ -241,7 +215,7 @@ export const ProfileSection: React.FC<ProfileSectionProps> = ({
               onClick={() => setIsExpanded(!isExpanded)}
               className="text-[#00aff0] text-xs font-bold hover:underline inline-block pt-0.5"
             >
-              {isExpanded ? 'Menos informações' : 'Mais informações'}
+              {isExpanded ? copy('home.profile.less') : copy('home.profile.more')}
             </button>
           )}
         </div>
@@ -254,3 +228,4 @@ export const ProfileSection: React.FC<ProfileSectionProps> = ({
     </section>
   );
 };
+

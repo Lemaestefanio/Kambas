@@ -1,3 +1,4 @@
+import { useSiteContent } from '../cms/SiteContent';
 import React, { useState, useEffect } from 'react';
 import {
   ArrowLeft,
@@ -44,6 +45,7 @@ export const InternalCheckoutPage: React.FC<InternalCheckoutPageProps> = ({
   onBack,
   onSuccess,
 }) => {
+  const { copy, settings } = useSiteContent();
   const [selectedMethod, setSelectedMethod] = useState<'express' | 'referencia' | 'iban'>('express');
   const [mcxPhone, setMcxPhone] = useState('');
   const [copiedKey, setCopiedKey] = useState<string | null>(null);
@@ -71,29 +73,29 @@ export const InternalCheckoutPage: React.FC<InternalCheckoutPageProps> = ({
   const availableBumps: OrderBump[] = [
     {
       id: 'bump-whatsapp',
-      title: `WhatsApp Pessoal da ${creator.shortName} (+ Áudio de Boas-Vindas)`,
-      description: `Recebe o número direto de WhatsApp privado de ${creator.shortName} para conversas sem censura e agendamento de chamadas VIP.`,
+      title: copy("overlay.internal-checkout-page.048", { name: creator.shortName }),
+      description: copy("overlay.internal-checkout-page.049", { name: creator.shortName }),
       priceRaw: 3500,
-      priceFormatted: '3.500 Kz',
-      badge: 'MAIS VENDIDO 🔥',
+      priceFormatted: copy("overlay.internal-checkout-page.038"),
+      badge: copy("overlay.internal-checkout-page.039"),
       icon: '📱',
     },
     {
       id: 'bump-secret-pack',
-      title: 'Pack Oculto Arquivo Secreto (25 Fotos + 4 Vídeos Inéditos)',
-      description: 'Ensaio privado sem qualquer desfoque direto no teu perfil com download liberado.',
+      title: copy("overlay.internal-checkout-page.040"),
+      description: copy("overlay.internal-checkout-page.041"),
       priceRaw: 4900,
-      priceFormatted: '4.900 Kz',
-      badge: 'OFERTA ÚNICA 🔞',
+      priceFormatted: copy("overlay.internal-checkout-page.042"),
+      badge: copy("overlay.internal-checkout-page.043"),
       icon: '🔒',
     },
     {
       id: 'bump-vip-speed',
-      title: 'Acesso Expresso Instantâneo (Fila Prioritária)',
-      description: 'Ativação prioritária automática em menos de 60 segundos no sistema.',
+      title: copy("overlay.internal-checkout-page.044"),
+      description: copy("overlay.internal-checkout-page.045"),
       priceRaw: 1500,
-      priceFormatted: '1.500 Kz',
-      badge: 'PRIORIDADE ⚡',
+      priceFormatted: copy("overlay.internal-checkout-page.046"),
+      badge: copy("overlay.internal-checkout-page.047"),
       icon: '⚡',
     },
   ];
@@ -115,10 +117,10 @@ export const InternalCheckoutPage: React.FC<InternalCheckoutPageProps> = ({
   const finalTotalFormatted = `${finalTotalRaw.toLocaleString('pt-AO')} Kz`;
 
   // Bank & Reference Details
-  const entidadeCode = '10142';
-  const referenciaCode = '948 219 082';
-  const ibanCode = 'AO06 0040 0000 8923 1102 1014 9';
-  const beneficiaryName = 'Serviços Digitais Privé AO';
+  const entidadeCode = copy("overlay.internal-checkout-page.057");
+  const referenciaCode = copy("overlay.internal-checkout-page.058");
+  const ibanCode = settings.bankDetails.iban;
+  const beneficiaryName = copy("overlay.internal-checkout-page.059");
 
   const handleCopy = (text: string, key: string) => {
     navigator.clipboard?.writeText(text);
@@ -129,7 +131,7 @@ export const InternalCheckoutPage: React.FC<InternalCheckoutPageProps> = ({
   const handleMcxSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!mcxPhone || mcxPhone.length < 9) {
-      alert('Por favor introduz o teu número de telemóvel associado ao Multicaixa Express.');
+      alert(copy("overlay.internal-checkout-page.056"));
       return;
     }
     setIsProcessing(true);
@@ -157,7 +159,7 @@ export const InternalCheckoutPage: React.FC<InternalCheckoutPageProps> = ({
           className="flex items-center gap-1.5 text-xs text-slate-300 hover:text-white transition-colors cursor-pointer bg-slate-800/80 hover:bg-slate-700 px-3 py-1.5 rounded-full"
         >
           <ArrowLeft className="w-4 h-4" />
-          <span>Voltar</span>
+          <span>{copy("overlay.internal-checkout-page.001")}</span>
         </button>
 
         <LuandaPriveLogo size="sm" variant="compact" />
@@ -176,12 +178,8 @@ export const InternalCheckoutPage: React.FC<InternalCheckoutPageProps> = ({
             <ShieldCheck className="w-5 h-5" />
           </div>
           <div>
-            <h4 className="text-xs font-black text-emerald-300 uppercase tracking-wider">
-              Checkout 100% Discreto & Seguro
-            </h4>
-            <p className="text-[11px] text-slate-300 leading-snug">
-              Sem menções adultas no extrato bancário. Transação encriptada via Multicaixa oficial.
-            </p>
+            <h4 className="text-xs font-black text-emerald-300 uppercase tracking-wider">{copy("overlay.internal-checkout-page.002")}</h4>
+            <p className="text-[11px] text-slate-300 leading-snug">{copy("overlay.internal-checkout-page.003")}</p>
           </div>
         </div>
 
@@ -193,30 +191,28 @@ export const InternalCheckoutPage: React.FC<InternalCheckoutPageProps> = ({
             </div>
 
             <div>
-              <h3 className="text-xl font-black text-white">
-                Acesso VIP Desbloqueado! 🎉
-              </h3>
+              <h3 className="text-xl font-black text-white">{copy("overlay.internal-checkout-page.004")}</h3>
               <p className="text-xs text-slate-300 mt-1">
-                O teu pagamento foi registado com sucesso para o perfil de {creator.name}.
+                {copy("overlay.internal-checkout-page.052", { name: creator.name })}
               </p>
             </div>
 
             <div className="bg-slate-900/80 p-4 rounded-2xl border border-slate-800 text-left space-y-2 text-xs">
               <div className="flex justify-between text-slate-400">
-                <span>Criadora:</span>
+                <span>{copy("overlay.internal-checkout-page.005")}</span>
                 <span className="font-bold text-white">{creator.name}</span>
               </div>
               <div className="flex justify-between text-slate-400">
-                <span>Plano Ativado:</span>
+                <span>{copy("overlay.internal-checkout-page.006")}</span>
                 <span className="font-bold text-emerald-400">{plan.duration}</span>
               </div>
               <div className="flex justify-between text-slate-400">
-                <span>Total Pago:</span>
+                <span>{copy("overlay.internal-checkout-page.007")}</span>
                 <span className="font-mono font-bold text-white">{finalTotalFormatted}</span>
               </div>
               {selectedBumps['bump-whatsapp'] && (
                 <div className="flex justify-between text-slate-400 pt-1 border-t border-slate-800">
-                  <span>WhatsApp Privado:</span>
+                  <span>{copy("overlay.internal-checkout-page.008")}</span>
                   <span className="font-mono font-bold text-emerald-400">{creator.whatsappNumber}</span>
                 </div>
               )}
@@ -226,23 +222,21 @@ export const InternalCheckoutPage: React.FC<InternalCheckoutPageProps> = ({
               {selectedBumps['bump-whatsapp'] && (
                 <a
                   href={`https://wa.me/${creator.whatsappNumber.replace(/[^0-9]/g, '')}?text=${encodeURIComponent(
-                    `Olá ${creator.shortName}! Acabei de aderir ao teu VIP na Luanda Privé. Estou super ansioso pelos teus conteúdos!`
+                    copy("overlay.internal-checkout-page.050", { name: creator.shortName })
                   )}`}
                   target="_blank"
                   rel="noopener noreferrer"
                   className="w-full py-3 bg-[#25D366] hover:bg-[#20ba59] text-white font-extrabold text-xs rounded-xl shadow-lg transition-all flex items-center justify-center gap-2"
                 >
                   <MessageCircle className="w-4 h-4" />
-                  <span>Chamar a {creator.shortName} no WhatsApp</span>
+                  <span>{copy("overlay.internal-checkout-page.053", { name: creator.shortName })}</span>
                 </a>
               )}
 
               <button
                 onClick={onBack}
                 className="w-full py-3 bg-gradient-to-r from-[#00aff0] to-[#0070ba] text-white font-extrabold text-xs rounded-xl shadow-lg transition-all cursor-pointer"
-              >
-                Ver Todo o Feed Sem Desfoque
-              </button>
+              >{copy("overlay.internal-checkout-page.009")}</button>
             </div>
           </div>
         ) : (
@@ -256,16 +250,14 @@ export const InternalCheckoutPage: React.FC<InternalCheckoutPageProps> = ({
                     alt={creator.name}
                     className="w-12 h-12 rounded-xl object-cover ring-2 ring-[#00aff0]/40"
                   />
-                  <span className="absolute -bottom-1 -right-1 bg-amber-400 text-slate-950 text-[8px] font-black px-1 rounded-sm">
-                    VIP
-                  </span>
+                  <span className="absolute -bottom-1 -right-1 bg-amber-400 text-slate-950 text-[8px] font-black px-1 rounded-sm">{copy("overlay.internal-checkout-page.010")}</span>
                 </div>
                 <div>
                   <div className="flex items-center gap-1">
                     <h3 className="text-xs sm:text-sm font-black text-white">{creator.name}</h3>
                     <CheckCircle2 className="w-3.5 h-3.5 text-white fill-[#00aff0]" />
                   </div>
-                  <p className="text-xs text-slate-400 font-medium">{plan.duration} · Acesso Total</p>
+                  <p className="text-xs text-slate-400 font-medium">{copy("overlay.internal-checkout-page.061", { duration: plan.duration })}</p>
                 </div>
               </div>
 
@@ -284,11 +276,9 @@ export const InternalCheckoutPage: React.FC<InternalCheckoutPageProps> = ({
               <div className="flex items-center justify-between px-1">
                 <h4 className="text-xs font-black uppercase tracking-wider text-slate-300 flex items-center gap-1.5">
                   <Sparkles className="w-3.5 h-3.5 text-amber-400" />
-                  <span>Ofertas Exclusivas Desta Sessão (Order Bumps):</span>
+                  <span>{copy("overlay.internal-checkout-page.011")}</span>
                 </h4>
-                <span className="text-[10px] text-amber-400 font-bold bg-amber-400/10 px-2 py-0.5 rounded-full border border-amber-400/20">
-                  1-Clique
-                </span>
+                <span className="text-[10px] text-amber-400 font-bold bg-amber-400/10 px-2 py-0.5 rounded-full border border-amber-400/20">{copy("overlay.internal-checkout-page.012")}</span>
               </div>
 
               {availableBumps.map((bump) => {
@@ -342,8 +332,8 @@ export const InternalCheckoutPage: React.FC<InternalCheckoutPageProps> = ({
             {/* PAYMENT METHOD SELECTOR */}
             <div className="bg-[#0c1424] rounded-2xl p-4 border border-slate-800 space-y-3.5">
               <h4 className="text-xs font-black uppercase tracking-wider text-slate-300 flex items-center justify-between">
-                <span>Escolhe o Método de Pagamento:</span>
-                <span className="text-[10px] text-slate-400 font-normal">Angola 🇦🇴</span>
+                <span>{copy("overlay.internal-checkout-page.013")}</span>
+                <span className="text-[10px] text-slate-400 font-normal">{copy("overlay.internal-checkout-page.014")}</span>
               </h4>
 
               <div className="grid grid-cols-3 gap-1.5 p-1 bg-slate-900 rounded-xl">
@@ -357,7 +347,7 @@ export const InternalCheckoutPage: React.FC<InternalCheckoutPageProps> = ({
                   }`}
                 >
                   <Smartphone className="w-4 h-4" />
-                  <span>Express (MCX)</span>
+                  <span>{copy("overlay.internal-checkout-page.015")}</span>
                 </button>
 
                 <button
@@ -370,7 +360,7 @@ export const InternalCheckoutPage: React.FC<InternalCheckoutPageProps> = ({
                   }`}
                 >
                   <Building className="w-4 h-4" />
-                  <span>Referência</span>
+                  <span>{copy("overlay.internal-checkout-page.016")}</span>
                 </button>
 
                 <button
@@ -383,7 +373,7 @@ export const InternalCheckoutPage: React.FC<InternalCheckoutPageProps> = ({
                   }`}
                 >
                   <ExternalLink className="w-4 h-4" />
-                  <span>IBAN Direto</span>
+                  <span>{copy("overlay.internal-checkout-page.017")}</span>
                 </button>
               </div>
 
@@ -393,25 +383,23 @@ export const InternalCheckoutPage: React.FC<InternalCheckoutPageProps> = ({
                   {!mcxRequested ? (
                     <form onSubmit={handleMcxSubmit} className="space-y-3">
                       <div className="bg-slate-900/80 p-3 rounded-xl border border-slate-800 text-[11px] text-slate-300 space-y-1">
-                        <p className="font-bold text-white">Como funciona o Multicaixa Express:</p>
+                        <p className="font-bold text-white">{copy("overlay.internal-checkout-page.018")}</p>
                         <ol className="list-decimal list-inside text-slate-400 space-y-0.5">
-                          <li>Coloca o teu número de telemóvel angolano.</li>
-                          <li>Recebes a notificação de compra no teu telefone.</li>
-                          <li>Abre a app Multicaixa Express e confirma com o teu PIN.</li>
+                          <li>{copy("overlay.internal-checkout-page.019")}</li>
+                          <li>{copy("overlay.internal-checkout-page.020")}</li>
+                          <li>{copy("overlay.internal-checkout-page.021")}</li>
                         </ol>
                       </div>
 
                       <div>
-                        <label className="block text-xs font-bold text-slate-300 mb-1">
-                          Número de Telemóvel Multicaixa Express
-                        </label>
+                        <label className="block text-xs font-bold text-slate-300 mb-1">{copy("overlay.internal-checkout-page.022")}</label>
                         <div className="relative">
                           <div className="absolute inset-y-0 left-0 pl-3 flex items-center text-xs font-black text-slate-400">
                             +244
                           </div>
                           <input
                             type="tel"
-                            placeholder="9xx xxx xxx"
+                            placeholder={copy("overlay.internal-checkout-page.037")}
                             value={mcxPhone}
                             onChange={(e) => setMcxPhone(e.target.value.replace(/[^0-9]/g, ''))}
                             maxLength={9}
@@ -429,8 +417,8 @@ export const InternalCheckoutPage: React.FC<InternalCheckoutPageProps> = ({
                         <Smartphone className="w-4 h-4" />
                         <span>
                           {isProcessing
-                            ? 'A enviar pedido ao Multicaixa...'
-                            : `Pagar ${finalTotalFormatted} com MCX`}
+                            ? copy("overlay.internal-checkout-page.062")
+                            : copy("overlay.internal-checkout-page.051", { total: finalTotalFormatted })}
                         </span>
                       </button>
                     </form>
@@ -441,10 +429,10 @@ export const InternalCheckoutPage: React.FC<InternalCheckoutPageProps> = ({
                       </div>
                       <div>
                         <h5 className="text-xs font-black text-white">
-                          Notificação enviada para +244 {mcxPhone}
+                          {copy("overlay.internal-checkout-page.054", { phone: mcxPhone })}
                         </h5>
                         <p className="text-[11px] text-slate-400 mt-0.5">
-                          Abre o aplicativo Multicaixa Express agora para autorizar o valor de{' '}
+                          {copy("overlay.internal-checkout-page.060")}
                           <strong className="text-emerald-400">{finalTotalFormatted}</strong>.
                         </p>
                       </div>
@@ -454,17 +442,13 @@ export const InternalCheckoutPage: React.FC<InternalCheckoutPageProps> = ({
                           type="button"
                           onClick={handleConfirmPayment}
                           className="w-full py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs rounded-xl shadow transition-all cursor-pointer"
-                        >
-                          Já Autorizei no Telemóvel (Liberar Acesso)
-                        </button>
+                        >{copy("overlay.internal-checkout-page.023")}</button>
 
                         <button
                           type="button"
                           onClick={() => setMcxRequested(false)}
                           className="text-[11px] text-slate-400 hover:text-white underline cursor-pointer"
-                        >
-                          Alterar número de telemóvel
-                        </button>
+                        >{copy("overlay.internal-checkout-page.024")}</button>
                       </div>
                     </div>
                   )}
@@ -475,13 +459,12 @@ export const InternalCheckoutPage: React.FC<InternalCheckoutPageProps> = ({
               {selectedMethod === 'referencia' && (
                 <div className="space-y-3 pt-1">
                   <div className="bg-slate-900/80 p-3.5 rounded-xl border border-slate-800 space-y-2.5 text-xs">
-                    <p className="text-[11px] text-slate-400">
-                      Paga num Caixa Automático (Multicaixa ATM) ou pelo Internet Banking do teu banco escolhendo <strong>Pagamentos por Referência</strong>:
+                    <p className="text-[11px] text-slate-400">{copy("overlay.internal-checkout-page.025")}<strong>{copy("overlay.internal-checkout-page.026")}</strong>:
                     </p>
 
                     <div className="bg-black/50 p-2.5 rounded-lg border border-slate-800 flex items-center justify-between">
                       <div>
-                        <span className="text-[10px] text-slate-400 block">Entidade:</span>
+                        <span className="text-[10px] text-slate-400 block">{copy("overlay.internal-checkout-page.027")}</span>
                         <span className="font-mono font-black text-sm text-white">{entidadeCode}</span>
                       </div>
                       <button
@@ -496,7 +479,7 @@ export const InternalCheckoutPage: React.FC<InternalCheckoutPageProps> = ({
 
                     <div className="bg-black/50 p-2.5 rounded-lg border border-slate-800 flex items-center justify-between">
                       <div>
-                        <span className="text-[10px] text-slate-400 block">Referência:</span>
+                        <span className="text-[10px] text-slate-400 block">{copy("overlay.internal-checkout-page.028")}</span>
                         <span className="font-mono font-black text-sm text-[#00aff0]">{referenciaCode}</span>
                       </div>
                       <button
@@ -511,7 +494,7 @@ export const InternalCheckoutPage: React.FC<InternalCheckoutPageProps> = ({
 
                     <div className="bg-black/50 p-2.5 rounded-lg border border-slate-800 flex items-center justify-between">
                       <div>
-                        <span className="text-[10px] text-slate-400 block">Montante Exato:</span>
+                        <span className="text-[10px] text-slate-400 block">{copy("overlay.internal-checkout-page.029")}</span>
                         <span className="font-mono font-black text-sm text-emerald-400">{finalTotalFormatted}</span>
                       </div>
                       <button
@@ -531,7 +514,7 @@ export const InternalCheckoutPage: React.FC<InternalCheckoutPageProps> = ({
                     className="w-full py-3 bg-gradient-to-r from-emerald-600 to-emerald-700 hover:from-emerald-500 hover:to-emerald-600 text-white font-black text-xs rounded-xl shadow-lg transition-all flex items-center justify-center gap-2 cursor-pointer"
                   >
                     <CheckCircle2 className="w-4 h-4" />
-                    <span>Já Efetuei o Pagamento por Referência</span>
+                    <span>{copy("overlay.internal-checkout-page.030")}</span>
                   </button>
                 </div>
               )}
@@ -541,13 +524,13 @@ export const InternalCheckoutPage: React.FC<InternalCheckoutPageProps> = ({
                 <div className="space-y-3 pt-1">
                   <div className="bg-slate-900/80 p-3.5 rounded-xl border border-slate-800 space-y-2.5 text-xs">
                     <div>
-                      <span className="text-[10px] text-slate-400 block">Beneficiário (Sigiloso):</span>
+                      <span className="text-[10px] text-slate-400 block">{copy("overlay.internal-checkout-page.031")}</span>
                       <span className="font-bold text-white">{beneficiaryName}</span>
                     </div>
 
                     <div className="bg-black/50 p-2.5 rounded-lg border border-slate-800 flex items-center justify-between">
                       <div className="min-w-0 pr-2">
-                        <span className="text-[10px] text-slate-400 block">IBAN Oficial:</span>
+                        <span className="text-[10px] text-slate-400 block">{copy("overlay.internal-checkout-page.032")}</span>
                         <span className="font-mono font-bold text-xs text-[#00aff0] truncate block">
                           {ibanCode}
                         </span>
@@ -563,7 +546,7 @@ export const InternalCheckoutPage: React.FC<InternalCheckoutPageProps> = ({
                     </div>
 
                     <div>
-                      <span className="text-[10px] text-slate-400 block">Montante da Transferência:</span>
+                      <span className="text-[10px] text-slate-400 block">{copy("overlay.internal-checkout-page.033")}</span>
                       <span className="font-mono font-black text-sm text-emerald-400">{finalTotalFormatted}</span>
                     </div>
                   </div>
@@ -574,7 +557,7 @@ export const InternalCheckoutPage: React.FC<InternalCheckoutPageProps> = ({
                     className="w-full py-3 bg-gradient-to-r from-emerald-600 to-emerald-700 hover:from-emerald-500 hover:to-emerald-600 text-white font-black text-xs rounded-xl shadow-lg transition-all flex items-center justify-center gap-2 cursor-pointer"
                   >
                     <CheckCircle2 className="w-4 h-4" />
-                    <span>Já Fiz a Transferência Bancária</span>
+                    <span>{copy("overlay.internal-checkout-page.034")}</span>
                   </button>
                 </div>
               )}
@@ -584,17 +567,13 @@ export const InternalCheckoutPage: React.FC<InternalCheckoutPageProps> = ({
             <div className="fixed bottom-0 left-0 right-0 z-50 bg-[#0b1220]/95 backdrop-blur-md border-t border-slate-800 p-3 max-w-[600px] mx-auto shadow-2xl">
               <div className="flex items-center justify-between mb-2">
                 <div>
-                  <span className="text-[10px] uppercase font-bold text-slate-400 block">
-                    Total com Bumps Selecionados:
-                  </span>
+                  <span className="text-[10px] uppercase font-bold text-slate-400 block">{copy("overlay.internal-checkout-page.035")}</span>
                   <span className="text-base font-black text-white font-mono">
                     {finalTotalFormatted}
                   </span>
                 </div>
                 <div className="text-right">
-                  <span className="text-[10px] text-emerald-400 font-bold bg-emerald-500/10 px-2 py-0.5 rounded-full border border-emerald-500/20">
-                    Acesso Vitalício Garantido
-                  </span>
+                  <span className="text-[10px] text-emerald-400 font-bold bg-emerald-500/10 px-2 py-0.5 rounded-full border border-emerald-500/20">{copy("overlay.internal-checkout-page.036")}</span>
                 </div>
               </div>
 
@@ -604,7 +583,7 @@ export const InternalCheckoutPage: React.FC<InternalCheckoutPageProps> = ({
                 className="w-full py-3 bg-gradient-to-r from-[#00aff0] to-[#0070ba] hover:from-[#009ed9] hover:to-[#005fa0] text-white font-black text-xs rounded-xl shadow-lg shadow-[#00aff0]/25 transition-all flex items-center justify-center gap-2 cursor-pointer active:scale-98"
               >
                 <Lock className="w-4 h-4" />
-                <span>Confirmar e Desbloquear Acesso ({finalTotalFormatted})</span>
+                <span>{copy("overlay.internal-checkout-page.055", { total: finalTotalFormatted })}</span>
               </button>
             </div>
           </>

@@ -1,3 +1,4 @@
+import { useSiteContent } from '../cms/SiteContent';
 import React, { useState } from 'react';
 import { Check, Sparkles, ArrowRight, Lock } from 'lucide-react';
 import { Creator } from '../types';
@@ -11,12 +12,13 @@ export const MicroCommitmentQuiz: React.FC<MicroCommitmentQuizProps> = ({
   creator,
   onUnlockClick,
 }) => {
+  const { copy } = useSiteContent();
   const [selectedOption, setSelectedOption] = useState<number | null>(null);
 
   const options = [
-    { id: 1, label: 'Vídeo chamada 1-a-1 privada no WhatsApp', emoji: '📱' },
-    { id: 2, label: 'Ver fotos e vídeos sem censura em 4K', emoji: '🔞' },
-    { id: 3, label: 'Ouvir áudios íntimos e conversar no chat', emoji: '🎙️' },
+    { id: 1, label: copy('home.quiz.optionVideoCall'), emoji: copy('home.quiz.videoCallEmoji') },
+    { id: 2, label: copy('home.quiz.optionMedia'), emoji: copy('home.quiz.mediaEmoji') },
+    { id: 3, label: copy('home.quiz.optionVoice'), emoji: copy('home.quiz.voiceEmoji') },
   ];
 
   return (
@@ -24,7 +26,7 @@ export const MicroCommitmentQuiz: React.FC<MicroCommitmentQuizProps> = ({
       <div className="flex items-center gap-1.5">
         <Sparkles className="w-4 h-4 text-[#00aff0]" />
         <h3 className="text-xs font-bold text-slate-900 uppercase tracking-wide">
-          O que gostarias de fazer primeiro com a {creator.shortName}?
+          {copy('home.quiz.question', { name: creator.shortName })}
         </h3>
       </div>
 
@@ -63,14 +65,14 @@ export const MicroCommitmentQuiz: React.FC<MicroCommitmentQuizProps> = ({
       {selectedOption && (
         <div className="pt-2 border-t border-slate-100 animate-fade-in flex flex-col gap-2">
           <p className="text-[11px] text-[#15803d] font-semibold bg-emerald-50 border border-emerald-200 p-2 rounded-lg text-center">
-            ✨ Excelente escolha! A {creator.shortName} está disponível hoje para {options.find((o) => o.id === selectedOption)?.label.toLowerCase()}.
+            {copy('home.quiz.selected', { name: creator.shortName, option: options.find((o) => o.id === selectedOption)?.label.toLowerCase() || '' })}
           </p>
           <button
             onClick={onUnlockClick}
             className="w-full py-2.5 rounded-full bg-[#00aff0] hover:bg-[#009ed9] text-white font-bold text-xs uppercase tracking-wide transition-all shadow-md shadow-[#00aff0]/25 flex items-center justify-center gap-1.5 active:scale-[0.98]"
           >
             <Lock className="w-3.5 h-3.5" />
-            <span>Continuar para Desbloquear</span>
+            <span>{copy('home.quiz.continue')}</span>
             <ArrowRight className="w-3.5 h-3.5" />
           </button>
         </div>

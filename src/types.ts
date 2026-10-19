@@ -12,7 +12,18 @@ export interface Plan {
   features: string[];
 }
 
-export interface CreatorPost {
+/** Public preview controls. Blur is a presentation effect, not access control. */
+export interface MediaPreviewSettings {
+  visibility?: 'public' | 'blurred';
+  blurAmount?: number;
+  previewAudio?: boolean;
+  /** A separate, prepared public teaser; keep private originals outside public data. */
+  previewUrl?: string;
+  posterUrl?: string;
+  unlocked?: boolean;
+}
+
+export interface CreatorPost extends MediaPreviewSettings {
   id: string;
   time: string;
   text: string;
@@ -25,7 +36,7 @@ export interface CreatorPost {
   unlocked?: boolean;
 }
 
-export interface StoryHighlight {
+export interface StoryHighlight extends MediaPreviewSettings {
   id: string;
   title: string;
   coverImage: string;
@@ -35,7 +46,7 @@ export interface StoryHighlight {
   time: string;
 }
 
-export interface MediaPhoto {
+export interface MediaPhoto extends MediaPreviewSettings {
   id: string;
   url: string;
   caption: string;
@@ -44,11 +55,31 @@ export interface MediaPhoto {
 }
 
 export interface VoiceNote {
+  url?: string;
   id: string;
   title: string;
   duration: string;
   date: string;
   unlocked?: boolean;
+}
+
+export interface ManagedComment {
+  id: string;
+  name: string;
+  text: string;
+  time: string;
+  kind: 'demonstration' | 'real';
+  postId?: string;
+}
+
+export interface PageVariant {
+  label: string;
+  checkoutMode: 'guest' | 'account';
+  bio?: string;
+  customPaymentButtonText?: string;
+  checkoutUrl?: string;
+  avatar?: string;
+  banner?: string;
 }
 
 export interface Creator {
@@ -87,6 +118,22 @@ export interface Creator {
   videoPaywallSeconds?: number;
   mimoPrices?: number[];
   preferInternalCheckout?: boolean;
+  actionLinks?: Partial<Record<'subscribe' | 'message' | 'tip' | 'signup' | 'login' | 'explore' | 'notifications', string>>;
+  managedComments?: ManagedComment[];
+  commentsAccess?: 'public' | 'premium';
+  pageVariants?: { a?: PageVariant; b?: PageVariant };
+  cover?: {
+    type: 'image' | 'video';
+    positionX: number;
+    positionY: number;
+    visibility: 'public' | 'blurred';
+    blurAmount: number;
+    previewAudio: boolean;
+    presentation: 'video' | 'premiere';
+    startsAt?: string;
+    endsAt?: string;
+    viewerCount?: number;
+  };
 }
 
 export interface FAQItem {
@@ -101,3 +148,4 @@ export interface AppUser {
   email?: string;
   isAnonymous?: boolean;
 }
+

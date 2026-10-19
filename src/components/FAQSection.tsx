@@ -1,8 +1,9 @@
+import { useSiteContent } from '../cms/SiteContent';
 import React, { useState } from 'react';
 import { HelpCircle, ChevronDown } from 'lucide-react';
-import { FAQ_ITEMS } from '../data/content';
 
 export const FAQSection: React.FC = () => {
+  const { copy, settings } = useSiteContent();
   const [openIndex, setOpenIndex] = useState<number | null>(0);
 
   const toggle = (idx: number) => {
@@ -14,12 +15,12 @@ export const FAQSection: React.FC = () => {
       {/* Title */}
       <div className="flex items-center justify-center gap-2 mb-4">
         <HelpCircle className="h-5 w-5 text-[#00aff0]" />
-        <h2 className="text-base font-bold text-slate-900">Perguntas Frequentes</h2>
+        <h2 className="text-base font-bold text-slate-900">{copy('home.faq.title')}</h2>
       </div>
 
       {/* Accordion */}
       <div className="bg-white rounded-xl shadow-sm border border-slate-200/60 overflow-hidden">
-        {FAQ_ITEMS.map((item, idx) => {
+        {settings.faqs.map((item, idx) => {
           const isOpen = openIndex === idx;
           return (
             <div key={idx} className="px-4 border-b border-slate-200/60 last:border-b-0">

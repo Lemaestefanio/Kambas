@@ -1,3 +1,4 @@
+import { useSiteContent } from '../cms/SiteContent';
 import React, { useState } from 'react';
 import { X, Search, CheckCircle2, Flame, MapPin, ArrowRight } from 'lucide-react';
 import { Creator } from '../types';
@@ -15,7 +16,7 @@ export const CreatorsDirectoryModal: React.FC<CreatorsDirectoryModalProps> = ({
   onClose,
   onSelectCreator,
 }) => {
-  if (!isOpen) return null;
+  const { copy } = useSiteContent();
 
   const [activeFilter, setActiveFilter] = useState<string>('all');
   const [query, setQuery] = useState('');
@@ -31,6 +32,8 @@ export const CreatorsDirectoryModal: React.FC<CreatorsDirectoryModalProps> = ({
     return matchesFilter && matchesQuery;
   });
 
+  if (!isOpen) return null;
+
   return (
     <div className="fixed inset-0 z-[10004] bg-black/80 backdrop-blur-sm flex items-center justify-center p-3 sm:p-4 animate-fade-in">
       <div className="relative w-full max-w-lg bg-white rounded-2xl shadow-2xl overflow-hidden flex flex-col h-[600px] max-h-[92vh] border border-slate-200">
@@ -39,12 +42,8 @@ export const CreatorsDirectoryModal: React.FC<CreatorsDirectoryModalProps> = ({
           <div className="flex items-center gap-2">
             <Flame className="w-5 h-5 text-[#f97316] fill-[#f97316]" />
             <div>
-              <h2 className="text-sm font-bold text-slate-900 leading-tight">
-                Explorar Criadoras de Angola 🇦🇴
-              </h2>
-              <p className="text-[11px] text-slate-500">
-                Seleciona uma criadora para entrar no perfil e ver conteúdos
-              </p>
+              <h2 className="text-sm font-bold text-slate-900 leading-tight">{copy("overlay.creators-directory-modal.001")}</h2>
+              <p className="text-[11px] text-slate-500">{copy("overlay.creators-directory-modal.002")}</p>
             </div>
           </div>
 
@@ -62,7 +61,7 @@ export const CreatorsDirectoryModal: React.FC<CreatorsDirectoryModalProps> = ({
             <Search className="w-3.5 h-3.5 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
             <input
               type="text"
-              placeholder="Buscar criadoras por nome ou bairro..."
+              placeholder={copy("overlay.creators-directory-modal.004")}
               value={query}
               onChange={(e) => setQuery(e.target.value)}
               className="w-full pl-9 pr-3 py-1.5 bg-slate-100 border border-slate-200 rounded-full text-xs text-slate-900 placeholder-slate-400 focus:outline-none focus:border-[#00aff0]"
@@ -71,15 +70,15 @@ export const CreatorsDirectoryModal: React.FC<CreatorsDirectoryModalProps> = ({
 
           <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar pt-0.5">
             {[
-              { id: 'all', label: 'Todas' },
-              { id: 'centro', label: 'Luanda Centro' },
-              { id: 'talatona', label: 'Talatona' },
-              { id: 'miramar', label: 'Miramar' },
-              { id: 'alvalade', label: 'Alvalade' },
-              { id: 'ilha', label: 'Ilha do Cabo' },
-              { id: 'maculusso', label: 'Maculusso' },
-              { id: 'kilamba', label: 'Kilamba' },
-              { id: 'maianga', label: 'Maianga' },
+              { id: 'all', label: copy("overlay.creators-directory-modal.005") },
+              { id: 'centro', label: copy("overlay.creators-directory-modal.006") },
+              { id: 'talatona', label: copy("overlay.creators-directory-modal.007") },
+              { id: 'miramar', label: copy("overlay.creators-directory-modal.008") },
+              { id: 'alvalade', label: copy("overlay.creators-directory-modal.009") },
+              { id: 'ilha', label: copy("overlay.creators-directory-modal.010") },
+              { id: 'maculusso', label: copy("overlay.creators-directory-modal.011") },
+              { id: 'kilamba', label: copy("overlay.creators-directory-modal.012") },
+              { id: 'maianga', label: copy("overlay.creators-directory-modal.013") },
             ].map((f) => (
               <button
                 key={f.id}
@@ -97,7 +96,7 @@ export const CreatorsDirectoryModal: React.FC<CreatorsDirectoryModalProps> = ({
 
           <div className="pt-1 flex items-center justify-between">
             <span className="text-[10px] text-slate-500 font-medium">
-              {creators.length} criadoras disponíveis em Luanda
+              {copy("overlay.creators-directory-modal.014", { count: creators.length })}
             </span>
           </div>
         </div>
@@ -124,7 +123,7 @@ export const CreatorsDirectoryModal: React.FC<CreatorsDirectoryModalProps> = ({
                 />
                 <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />
                 <span className="absolute bottom-2 right-2 text-[10px] text-white/90 bg-black/60 px-2 py-0.5 rounded-full font-mono">
-                  {c.stats.photos} fotos · {c.stats.videos} vídeos
+                  {copy("overlay.creators-directory-modal.015", { photos: c.stats.photos, videos: c.stats.videos })}
                 </span>
               </div>
 
@@ -143,7 +142,7 @@ export const CreatorsDirectoryModal: React.FC<CreatorsDirectoryModalProps> = ({
                   </div>
 
                   <button className="flex items-center gap-1 px-3 py-1 bg-[#00aff0] text-white text-xs font-bold rounded-full group-hover:bg-[#009ed9] transition-colors shadow-sm">
-                    <span>Entrar no Perfil</span>
+                    <span>{copy("overlay.creators-directory-modal.003")}</span>
                     <ArrowRight className="w-3.5 h-3.5" />
                   </button>
                 </div>
@@ -159,7 +158,7 @@ export const CreatorsDirectoryModal: React.FC<CreatorsDirectoryModalProps> = ({
                   <MapPin className="w-3 h-3 text-slate-400" />
                   <span>{c.city}</span>
                   <span>·</span>
-                  <span>{c.age} anos</span>
+                  <span>{copy("overlay.creators-directory-modal.016", { age: c.age })}</span>
                 </div>
 
                 <p className="text-[11px] text-slate-600 line-clamp-2 leading-relaxed">

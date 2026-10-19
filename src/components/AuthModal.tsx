@@ -1,3 +1,4 @@
+import { useSiteContent } from '../cms/SiteContent';
 import React, { useState } from 'react';
 import { X, ShieldCheck, Sparkles, CheckCircle2, ArrowRight, User, EyeOff } from 'lucide-react';
 import { signInWithGoogle, signInAnonymouslyWithNickname } from '../firebase';
@@ -9,6 +10,7 @@ interface AuthModalProps {
   onClose: () => void;
   onSuccess: (user: AppUser) => void;
   creatorName?: string;
+  allowAnonymous?: boolean;
 }
 
 export const AuthModal: React.FC<AuthModalProps> = ({
@@ -16,7 +18,9 @@ export const AuthModal: React.FC<AuthModalProps> = ({
   onClose,
   onSuccess,
   creatorName = 'Criadoras VIP',
+  allowAnonymous = true,
 }) => {
+  const { copy } = useSiteContent();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [view, setView] = useState<'choice' | 'anonymous'>('choice');
@@ -32,7 +36,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
       if (user) {
         const appUser: AppUser = {
           uid: user.uid,
-          displayName: user.displayName || 'Membro VIP',
+          displayName: user.displayName || copy("overlay.auth-modal.009"),
           photoURL: user.photoURL || undefined,
           email: user.email || undefined,
           isAnonymous: false,
@@ -43,7 +47,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
       }
     } catch (err: any) {
       console.error(err);
-      setError('Não foi possível ligar à conta Google. Podes entrar como anónimo abaixo.');
+      setError(copy("overlay.auth-modal.011"));
     } finally {
       setLoading(false);
     }
@@ -51,7 +55,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
 
   const handleAnonymousSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    const clean = nickname.trim() || 'Fã VIP';
+    const clean = nickname.trim() || copy("overlay.auth-modal.010");
 
     try {
       setLoading(true);
@@ -78,20 +82,20 @@ export const AuthModal: React.FC<AuthModalProps> = ({
       onClose();
     } catch (err) {
       console.error(err);
-      setError('Erro ao entrar. Tenta novamente.');
+      setError(copy("overlay.auth-modal.012"));
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <div className="fixed inset-0 z-[10000] flex items-center justify-center p-3 sm:p-4 bg-black/85 backdrop-blur-md animate-fadeIn">
-      <div className="bg-white rounded-3xl max-w-md w-full overflow-hidden shadow-2xl border border-slate-100 flex flex-col relative animate-scaleUp">
+    <div role="dialog" aria-modal="true" aria-label="Entrar na plataforma" className="mobile-overlay fixed inset-0 z-[10000] flex items-center justify-center p-3 sm:p-4 bg-black/85">
+      <div className="mobile-dialog-panel mobile-scroll bg-white rounded-3xl max-w-md w-full shadow-2xl border border-slate-100 flex flex-col relative">
         {/* Close Button */}
         <button
           onClick={onClose}
           className="absolute top-4 right-4 z-10 w-9 h-9 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-500 hover:text-slate-800 flex items-center justify-center transition-colors cursor-pointer"
-          aria-label="Fechar"
+          aria-label={copy("overlay.auth-modal.007")}
         >
           <X className="w-5 h-5" />
         </button>
@@ -103,12 +107,12 @@ export const AuthModal: React.FC<AuthModalProps> = ({
           </div>
 
           <h2 className="text-xl sm:text-2xl font-black tracking-tight text-white mb-1">
-            {view === 'choice' ? 'Como preferes entrar?' : 'Entrar como Anónimo'}
+            {view === 'choice' ? copy("overlay.auth-modal.013") : copy("overlay.auth-modal.014")}
           </h2>
           <p className="text-xs text-slate-300 max-w-xs mx-auto leading-relaxed">
             {view === 'choice'
-              ? 'Queres criar conta com Conta Google ou queres entrar como anónimo?'
-              : 'Coloca só um nome ou pseudónimo para te identificares. Pode ser um nome falso.'}
+              ? copy("overlay.auth-modal.015")
+              : copy("overlay.auth-modal.016")}
           </p>
         </div>
 
@@ -147,14 +151,12 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                     d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z"
                   />
                 </svg>
-                <span>{loading ? 'A ligar...' : 'Entrar com Conta Google'}</span>
+                <span>{loading ? copy("overlay.auth-modal.017") : copy("overlay.auth-modal.018")}</span>
               </button>
 
-              <div className="relative flex py-1 items-center">
+              {allowAnonymous && <><div className="relative flex py-1 items-center">
                 <div className="flex-grow border-t border-slate-200"></div>
-                <span className="flex-shrink mx-3 text-[11px] text-slate-400 font-bold uppercase tracking-wider">
-                  ou 100% anónimo
-                </span>
+                <span className="flex-shrink mx-3 text-[11px] text-slate-400 font-bold uppercase tracking-wider">{copy("overlay.auth-modal.001")}</span>
                 <div className="flex-grow border-t border-slate-200"></div>
               </div>
 
@@ -165,27 +167,23 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                 className="w-full flex items-center justify-center gap-2.5 py-3.5 px-4 rounded-2xl bg-gradient-to-r from-slate-900 to-slate-800 hover:from-slate-800 hover:to-slate-700 text-white font-bold text-xs shadow-md transition-all active:scale-[0.98] cursor-pointer"
               >
                 <EyeOff className="w-4 h-4 text-[#00aff0]" />
-                <span>Entrar como Anónimo (Sem Email)</span>
-              </button>
+                <span>{copy("overlay.auth-modal.002")}</span>
+              </button></>}
             </div>
           ) : (
             <form onSubmit={handleAnonymousSubmit} className="space-y-4">
               <div>
-                <label className="block text-xs font-bold text-slate-700 mb-1.5">
-                  Como queres ser chamado? (Pode ser nome falso)
-                </label>
+                <label className="block text-xs font-bold text-slate-700 mb-1.5">{copy("overlay.auth-modal.003")}</label>
                 <input
                   type="text"
-                  placeholder="Ex: Edson, FãVIP_Luanda, Anónimo..."
+                  placeholder={copy("overlay.auth-modal.008")}
                   value={nickname}
                   onChange={(e) => setNickname(e.target.value)}
                   maxLength={25}
                   className="w-full px-4 py-3 rounded-xl border border-slate-300 focus:outline-none focus:border-[#00aff0] focus:ring-1 focus:ring-[#00aff0] text-sm font-medium"
                   autoFocus
                 />
-                <p className="text-[10px] text-slate-400 mt-1.5">
-                  Fica gravado apenas na sessão atual do navegador para te sentires dentro da plataforma.
-                </p>
+                <p className="text-[10px] text-slate-400 mt-1.5">{copy("overlay.auth-modal.004")}</p>
               </div>
 
               <button
@@ -193,7 +191,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                 disabled={loading}
                 className="w-full py-3.5 px-4 rounded-xl bg-gradient-to-r from-[#00aff0] to-[#009ed9] hover:from-[#009ed9] hover:to-[#008cc0] text-white font-bold text-xs shadow-md transition-all active:scale-[0.98] flex items-center justify-center gap-2 cursor-pointer"
               >
-                <span>{loading ? 'A entrar...' : 'Entrar Agora na Plataforma'}</span>
+                <span>{loading ? copy("overlay.auth-modal.019") : copy("overlay.auth-modal.020")}</span>
                 <ArrowRight className="w-4 h-4" />
               </button>
 
@@ -201,19 +199,18 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                 type="button"
                 onClick={() => setView('choice')}
                 className="w-full text-center text-xs text-slate-500 hover:text-slate-800 font-medium py-1"
-              >
-                ← Voltar às opções
-              </button>
+              >{copy("overlay.auth-modal.005")}</button>
             </form>
           )}
 
           {/* Privacy Note */}
           <div className="flex items-center justify-center gap-1.5 text-[11px] text-slate-400 pt-2 border-t border-slate-100">
             <ShieldCheck className="w-4 h-4 text-emerald-600 shrink-0" />
-            <span>100% Discreto · Pagamentos sem registo de nome no extrato</span>
+            <span>{copy("overlay.auth-modal.006")}</span>
           </div>
         </div>
       </div>
     </div>
   );
 };
+

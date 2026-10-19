@@ -1,3 +1,4 @@
+import { useSiteContent } from '../cms/SiteContent';
 import React from 'react';
 import { Image, Video, Mic, FileText } from 'lucide-react';
 import { Creator } from '../types';
@@ -17,6 +18,7 @@ export const TeaserSection: React.FC<TeaserSectionProps> = ({
   onTabChange,
   onUnlockClick,
 }) => {
+  const { copy } = useSiteContent();
   return (
     <div className="bg-white border-y border-slate-200/80 sticky top-[53px] z-30 shadow-xs">
       {/* 4 Clean Tabs */}
@@ -28,7 +30,7 @@ export const TeaserSection: React.FC<TeaserSectionProps> = ({
           }`}
         >
           <FileText className="w-3.5 h-3.5" />
-          <span>Posts ({creator.postCount})</span>
+          <span>{copy('home.tabs.posts', { count: creator.postCount })}</span>
           {activeTab === 'posts' && (
             <div className="absolute bottom-0 left-0 right-0 h-[2.5px] bg-[#00aff0] rounded-t-full" />
           )}
@@ -41,7 +43,7 @@ export const TeaserSection: React.FC<TeaserSectionProps> = ({
           }`}
         >
           <Image className="w-3.5 h-3.5" />
-          <span>Fotos ({creator.stats.photos})</span>
+          <span>{copy('home.tabs.photos', { count: creator.stats.photos })}</span>
           {activeTab === 'photos' && (
             <div className="absolute bottom-0 left-0 right-0 h-[2.5px] bg-[#00aff0] rounded-t-full" />
           )}
@@ -54,7 +56,7 @@ export const TeaserSection: React.FC<TeaserSectionProps> = ({
           }`}
         >
           <Video className="w-3.5 h-3.5" />
-          <span>Vídeos ({creator.stats.videos})</span>
+          <span>{copy('home.tabs.videos', { count: creator.stats.videos })}</span>
           {activeTab === 'videos' && (
             <div className="absolute bottom-0 left-0 right-0 h-[2.5px] bg-[#00aff0] rounded-t-full" />
           )}
@@ -67,7 +69,7 @@ export const TeaserSection: React.FC<TeaserSectionProps> = ({
           }`}
         >
           <Mic className="w-3.5 h-3.5" />
-          <span>Voz ({creator.voiceNotes.length})</span>
+          <span>{copy('home.tabs.voice', { count: creator.voiceNotes.length })}</span>
           {activeTab === 'audio' && (
             <div className="absolute bottom-0 left-0 right-0 h-[2.5px] bg-[#00aff0] rounded-t-full" />
           )}
@@ -76,3 +78,4 @@ export const TeaserSection: React.FC<TeaserSectionProps> = ({
     </div>
   );
 };
+

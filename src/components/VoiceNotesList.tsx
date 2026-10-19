@@ -1,4 +1,5 @@
-import React, { useState } from 'react';
+import { useSiteContent } from '../cms/SiteContent';
+import React, { useEffect, useRef, useState } from 'react';
 import { Play, Pause, Lock, Mic } from 'lucide-react';
 import { Creator, VoiceNote } from '../types';
 import { audioService } from '../utils/audio';
@@ -12,7 +13,26 @@ export const VoiceNotesList: React.FC<VoiceNotesListProps> = ({
   creator,
   onUnlockClick,
 }) => {
+  const { copy } = useSiteContent();
   const [playingId, setPlayingId] = useState<string | null>(null);
+  const audioRef = useRef<HTMLAudioElement | null>(null);
+
+  const stopPlayback = () => {
+    audioService.stopVoicePreview();
+    if (audioRef.current) {
+      audioRef.current.pause();
+      audioRef.current.onended = null;
+      audioRef.current.onerror = null;
+      audioRef.current.removeAttribute('src');
+      audioRef.current.load();
+      audioRef.current = null;
+    }
+  };
+
+  useEffect(() => {
+    setPlayingId(null);
+    return () => stopPlayback();
+  }, [creator.id]);
 
   const handleToggle = (vn: VoiceNote) => {
     if (!vn.unlocked) {
@@ -21,11 +41,26 @@ export const VoiceNotesList: React.FC<VoiceNotesListProps> = ({
     }
 
     if (playingId === vn.id) {
-      audioService.stopVoicePreview();
+      stopPlayback();
       setPlayingId(null);
     } else {
-      audioService.startVoicePreview(() => setPlayingId(null));
+      stopPlayback();
       setPlayingId(vn.id);
+      if (vn.url) {
+        const audio = new Audio(vn.url);
+        audioRef.current = audio;
+        const finish = () => {
+          if (audioRef.current !== audio) return;
+          stopPlayback();
+          setPlayingId(null);
+        };
+        audio.onended = finish;
+        audio.onerror = finish;
+        void audio.play().catch(finish);
+      } else {
+        // Preserve the original preview for notes without an uploaded recording.
+        audioService.startVoicePreview(() => setPlayingId(null));
+      }
     }
   };
 
@@ -34,10 +69,10 @@ export const VoiceNotesList: React.FC<VoiceNotesListProps> = ({
       <div className="flex items-center justify-between mb-2">
         <div>
           <h3 className="text-sm font-bold text-slate-900">
-            Mensagens de Voz & Áudios Privados
+            {copy('home.voice.title')}
           </h3>
           <p className="text-xs text-slate-500">
-            Áudios exclusivos gravados pela {creator.shortName}
+            {copy('home.voice.description', { name: creator.shortName })}
           </p>
         </div>
 
@@ -45,7 +80,7 @@ export const VoiceNotesList: React.FC<VoiceNotesListProps> = ({
           onClick={onUnlockClick}
           className="text-xs font-bold text-[#00aff0] hover:underline"
         >
-          Desbloquear Todos
+          {copy('home.voice.unlock')}
         </button>
       </div>
 
@@ -101,7 +136,7 @@ export const VoiceNotesList: React.FC<VoiceNotesListProps> = ({
                 </div>
               ) : (
                 <span className="text-[10px] font-bold uppercase tracking-wider text-rose-500 bg-rose-50 border border-rose-200 px-2 py-0.5 rounded-md">
-                  Bloqueado
+                  {copy('home.voice.locked')}
                 </span>
               )}
             </div>

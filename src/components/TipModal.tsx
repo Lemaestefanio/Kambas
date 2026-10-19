@@ -1,3 +1,4 @@
+import { useSiteContent } from '../cms/SiteContent';
 import React, { useState } from 'react';
 import { X, Gift, CheckCircle2, ShieldCheck, ArrowRight } from 'lucide-react';
 import { Creator, Plan } from '../types';
@@ -15,17 +16,17 @@ export const TipModal: React.FC<TipModalProps> = ({
   creator,
   onProceedToPayment,
 }) => {
-  if (!isOpen) return null;
+  const { copy } = useSiteContent();
 
   const mimos = creator.mimoPrices && creator.mimoPrices.length === 4
     ? creator.mimoPrices
     : [2000, 5000, 10000, 20000];
 
   const presetAmounts = [
-    { label: `${mimos[0].toLocaleString('pt-AO')} Kz`, value: mimos[0], desc: 'Agradecimento rápido' },
-    { label: `${mimos[1].toLocaleString('pt-AO')} Kz`, value: mimos[1], desc: 'Mimo especial 💋', popular: true },
-    { label: `${mimos[2].toLocaleString('pt-AO')} Kz`, value: mimos[2], desc: 'Atenção prioritária no WhatsApp 🔥' },
-    { label: `${mimos[3].toLocaleString('pt-AO')} Kz`, value: mimos[3], desc: 'Mimo VIP exclusivo com chamada' },
+    { label: `${mimos[0].toLocaleString('pt-AO')} Kz`, value: mimos[0], desc: copy("overlay.tip-modal.005") },
+    { label: `${mimos[1].toLocaleString('pt-AO')} Kz`, value: mimos[1], desc: copy("overlay.tip-modal.006"), popular: true },
+    { label: `${mimos[2].toLocaleString('pt-AO')} Kz`, value: mimos[2], desc: copy("overlay.tip-modal.007") },
+    { label: `${mimos[3].toLocaleString('pt-AO')} Kz`, value: mimos[3], desc: copy("overlay.tip-modal.008") },
   ];
 
   const [selectedAmount, setSelectedAmount] = useState<number>(mimos[1]);
@@ -47,6 +48,8 @@ export const TipModal: React.FC<TipModalProps> = ({
     window.location.href = targetUrl;
   };
 
+  if (!isOpen) return null;
+
   return (
     <div className="fixed inset-0 z-[10005] bg-black/80 backdrop-blur-sm flex items-end sm:items-center justify-center p-0 sm:p-4 animate-fade-in">
       <div
@@ -60,11 +63,9 @@ export const TipModal: React.FC<TipModalProps> = ({
               <Gift className="w-5 h-5" />
             </div>
             <div>
-              <h3 className="text-sm font-bold text-slate-900 leading-tight">
-                Enviar Mimo / Gorjeta
-              </h3>
+              <h3 className="text-sm font-bold text-slate-900 leading-tight">{copy("overlay.tip-modal.001")}</h3>
               <p className="text-[11px] text-slate-500">
-                Para {creator.name} (Multicaixa Express)
+                {copy("overlay.tip-modal.010", { name: creator.name })}
               </p>
             </div>
           </div>
@@ -80,9 +81,7 @@ export const TipModal: React.FC<TipModalProps> = ({
         {/* Content */}
         <div className="p-4 space-y-4 overflow-y-auto">
           <div>
-            <label className="text-xs font-bold text-slate-700 block mb-2">
-              Escolhe o valor da gorjeta em Kwanzas (Kz):
-            </label>
+            <label className="text-xs font-bold text-slate-700 block mb-2">{copy("overlay.tip-modal.002")}</label>
             <div className="grid grid-cols-2 gap-2.5">
               {presetAmounts.map((p) => {
                 const isSelected = selectedAmount === p.value;
@@ -104,9 +103,7 @@ export const TipModal: React.FC<TipModalProps> = ({
                       {p.desc}
                     </span>
                     {p.popular && (
-                      <span className="absolute top-2 right-2 text-[8px] font-bold uppercase tracking-wider text-amber-600 bg-amber-50 px-1 rounded border border-amber-200">
-                        Top
-                      </span>
+                      <span className="absolute top-2 right-2 text-[8px] font-bold uppercase tracking-wider text-amber-600 bg-amber-50 px-1 rounded border border-amber-200">{copy("overlay.tip-modal.003")}</span>
                     )}
                   </button>
                 );
@@ -116,13 +113,13 @@ export const TipModal: React.FC<TipModalProps> = ({
 
           <div>
             <label className="text-xs font-bold text-slate-700 block mb-1.5">
-              Mensagem personalizada para a {creator.shortName} (opcional):
+              {copy("overlay.tip-modal.011", { name: creator.shortName })}
             </label>
             <textarea
               rows={2}
               value={message}
               onChange={(e) => setMessage(e.target.value)}
-              placeholder="Escreve uma mensagem carinhosa ou o teu WhatsApp..."
+              placeholder={copy("overlay.tip-modal.004")}
               className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-900 placeholder-slate-400 focus:outline-none focus:border-[#00aff0]"
             />
           </div>
@@ -130,7 +127,7 @@ export const TipModal: React.FC<TipModalProps> = ({
           <div className="p-3 bg-emerald-50/70 border border-emerald-200/60 rounded-xl flex items-center gap-2.5 text-emerald-800">
             <ShieldCheck className="w-4 h-4 shrink-0 text-emerald-600" />
             <p className="text-[11px] leading-tight">
-              A {creator.shortName} recebe 100% da gorjeta e vê o teu nome e mensagem de imediato no privado.
+              {copy("overlay.tip-modal.012", { name: creator.shortName })}
             </p>
           </div>
         </div>
@@ -144,7 +141,7 @@ export const TipModal: React.FC<TipModalProps> = ({
             <span>
               {creator.customPaymentButtonText
                 ? `${creator.customPaymentButtonText} (${selectedAmount.toLocaleString('pt-AO')} Kz)`
-                : `Confirmar e Pagar ${selectedAmount.toLocaleString('pt-AO')} Kz`}
+                : copy("overlay.tip-modal.009", { amount: selectedAmount.toLocaleString('pt-AO') })}
             </span>
             <ArrowRight className="w-4 h-4" />
           </button>

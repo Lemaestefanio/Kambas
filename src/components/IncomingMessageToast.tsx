@@ -1,3 +1,4 @@
+import { useSiteContent } from '../cms/SiteContent';
 import React, { useState, useEffect } from 'react';
 import { X, Send } from 'lucide-react';
 import { Creator } from '../types';
@@ -12,8 +13,9 @@ export const IncomingMessageToast: React.FC<IncomingMessageToastProps> = ({
   creator,
   onUnlockClick,
 }) => {
+  const { copy } = useSiteContent();
   const [isVisible, setIsVisible] = useState(false);
-  const [timeAgo, setTimeAgo] = useState('agora');
+  const [isMinuteOld, setIsMinuteOld] = useState(false);
   const [replyText, setReplyText] = useState('');
 
   useEffect(() => {
@@ -23,7 +25,7 @@ export const IncomingMessageToast: React.FC<IncomingMessageToastProps> = ({
     }, 4500);
 
     const minuteTimer = setTimeout(() => {
-      setTimeAgo('há 1 min');
+      setIsMinuteOld(true);
     }, 60000);
 
     return () => {
@@ -50,14 +52,12 @@ export const IncomingMessageToast: React.FC<IncomingMessageToastProps> = ({
           <div className="w-5 h-5 rounded-[5px] overflow-hidden flex-shrink-0">
             <img src={creator.avatar} alt="" className="w-full h-full object-cover" />
           </div>
-          <span className="text-[11px] font-semibold text-white/50 uppercase tracking-wider flex-1">
-            Mensagens
-          </span>
-          <span className="text-[11px] text-white/30 mr-1 font-mono">{timeAgo}</span>
+          <span className="text-[11px] font-semibold text-white/50 uppercase tracking-wider flex-1">{copy("overlay.incoming-message-toast.001")}</span>
+          <span className="text-[11px] text-white/30 mr-1 font-mono">{isMinuteOld ? copy("overlay.incoming-message-toast.004") : copy("overlay.incoming-message-toast.005")}</span>
           <button
             onClick={() => setIsVisible(false)}
             className="w-5 h-5 flex items-center justify-center rounded-full bg-white/10 hover:bg-white/20 transition-colors"
-            aria-label="Fechar"
+            aria-label={copy("overlay.incoming-message-toast.002")}
           >
             <X className="h-3 w-3 text-white/50" />
           </button>
@@ -74,7 +74,7 @@ export const IncomingMessageToast: React.FC<IncomingMessageToastProps> = ({
 
           <div className="flex-1 min-w-0">
             <p className="text-[13px] font-semibold text-white leading-tight">
-              {creator.shortName} 💋
+              {copy("overlay.incoming-message-toast.007", { name: creator.shortName })}
             </p>
             <p className="text-[13px] text-white/75 mt-0.5 leading-snug line-clamp-3">
               {creator.incomingMessage}
@@ -86,7 +86,7 @@ export const IncomingMessageToast: React.FC<IncomingMessageToastProps> = ({
         <form onSubmit={handleSend} className="mt-2.5 flex items-center gap-2">
           <input
             type="text"
-            placeholder={`Responder à ${creator.shortName}...`}
+            placeholder={copy("overlay.incoming-message-toast.006", { name: creator.shortName })}
             value={replyText}
             onChange={(e) => setReplyText(e.target.value)}
             className="flex-1 bg-white/[0.08] border border-white/10 rounded-full px-3.5 py-1.5 text-xs text-white placeholder-white/30 focus:outline-none focus:border-[#00aff0]"

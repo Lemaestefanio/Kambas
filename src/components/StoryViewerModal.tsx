@@ -1,6 +1,8 @@
+import { useSiteContent } from '../cms/SiteContent';
 import React, { useState, useEffect } from 'react';
-import { X, ChevronLeft, ChevronRight, Lock, Heart, Send } from 'lucide-react';
+import { X, ChevronLeft, ChevronRight, Lock } from 'lucide-react';
 import { StoryHighlight, Creator } from '../types';
+import { MediaPreview } from './MediaPreview';
 
 interface StoryViewerModalProps {
   creator: Creator;
@@ -17,16 +19,23 @@ export const StoryViewerModal: React.FC<StoryViewerModalProps> = ({
   onClose,
   onUnlockClick,
 }) => {
-  if (!isOpen) return null;
+  const { copy } = useSiteContent();
 
   const [currentIndex, setCurrentIndex] = useState(initialStoryIndex);
   const [progress, setProgress] = useState(0);
   const [reactionSent, setReactionSent] = useState<string | null>(null);
+  const [videoPlaying, setVideoPlaying] = useState(false);
 
   const currentStory: StoryHighlight = creator.highlights[currentIndex] || creator.highlights[0];
 
   useEffect(() => {
-    setProgress(0);
+    if (isOpen) { setCurrentIndex(initialStoryIndex); setProgress(0); setVideoPlaying(false); }
+  }, [isOpen, initialStoryIndex]);
+
+  useEffect(() => { setProgress(0); }, [currentIndex]);
+
+  useEffect(() => {
+    if (!isOpen || (currentStory?.type === 'video' && !videoPlaying)) return;
     const interval = setInterval(() => {
       setProgress((p) => {
         if (p >= 100) {
@@ -44,7 +53,7 @@ export const StoryViewerModal: React.FC<StoryViewerModalProps> = ({
     }, 100);
 
     return () => clearInterval(interval);
-  }, [currentIndex, creator.highlights.length, onClose]);
+  }, [currentIndex, creator.highlights.length, currentStory?.type, videoPlaying, onClose, isOpen]);
 
   const handlePrev = (e: React.MouseEvent) => {
     e.stopPropagation();
@@ -68,6 +77,8 @@ export const StoryViewerModal: React.FC<StoryViewerModalProps> = ({
     setReactionSent(emoji);
     setTimeout(() => setReactionSent(null), 2000);
   };
+
+  if (!isOpen || !currentStory) return null;
 
   return (
     <div className="fixed inset-0 z-[10001] bg-black/95 backdrop-blur-md flex items-center justify-center animate-fade-in select-none">
@@ -97,6 +108,7 @@ export const StoryViewerModal: React.FC<StoryViewerModalProps> = ({
             <img
               src={creator.avatar}
               alt={creator.name}
+              decoding="async" width={32} height={32}
               className="w-8 h-8 rounded-full object-cover ring-2 ring-[#00aff0]"
             />
             <div className="flex flex-col">
@@ -108,7 +120,7 @@ export const StoryViewerModal: React.FC<StoryViewerModalProps> = ({
           <button
             onClick={onClose}
             className="p-1 rounded-full bg-black/50 text-white/80 hover:text-white transition-colors"
-            aria-label="Fechar story"
+            aria-label={copy("overlay.story-viewer-modal.001")}
           >
             <X className="w-5 h-5" />
           </button>
@@ -116,34 +128,22 @@ export const StoryViewerModal: React.FC<StoryViewerModalProps> = ({
 
         {/* Media Container with Left/Right Tap zones */}
         <div className="relative flex-1 bg-black flex items-center justify-center overflow-hidden">
-          {currentStory.type === 'video' ? (
-            <video
-              src={currentStory.mediaUrl}
-              autoPlay
-              loop
-              playsInline
-              className="w-full h-full object-cover"
-            />
-          ) : (
-            <img
-              src={currentStory.mediaUrl}
-              alt={currentStory.title}
-              className="w-full h-full object-cover"
-            />
-          )}
+          <MediaPreview key={currentStory.id} kind={currentStory.type} src={currentStory.mediaUrl}
+            poster={currentStory.coverImage} alt={currentStory.title} settings={currentStory} defaultPublic
+            onPlaybackChange={setVideoPlaying} className="absolute inset-0 h-full w-full" />
 
           {/* Left / Right Click Areas */}
           <button
             onClick={handlePrev}
             className="absolute left-0 top-16 bottom-24 w-1/3 z-20 opacity-0 hover:opacity-20 bg-white/20 flex items-center justify-start pl-2 transition-opacity"
-            aria-label="Story anterior"
+            aria-label={copy("overlay.story-viewer-modal.002")}
           >
             <ChevronLeft className="w-8 h-8 text-white" />
           </button>
           <button
             onClick={handleNext}
             className="absolute right-0 top-16 bottom-24 w-1/3 z-20 opacity-0 hover:opacity-20 bg-white/20 flex items-center justify-end pr-2 transition-opacity"
-            aria-label="Próxima story"
+            aria-label={copy("overlay.story-viewer-modal.003")}
           >
             <ChevronRight className="w-8 h-8 text-white" />
           </button>
@@ -184,10 +184,11 @@ export const StoryViewerModal: React.FC<StoryViewerModalProps> = ({
             className="w-full py-2.5 rounded-full bg-[#00aff0] hover:bg-[#009ed9] text-white font-bold text-xs uppercase tracking-wide flex items-center justify-center gap-2 shadow-lg shadow-[#00aff0]/30 active:scale-[0.98]"
           >
             <Lock className="w-3.5 h-3.5" />
-            <span>Desbloquear VIP da {creator.shortName}</span>
+            <span>{copy("overlay.story-viewer-modal.004", { name: creator.shortName })}</span>
           </button>
         </div>
       </div>
     </div>
   );
 };
+
