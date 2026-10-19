@@ -47,6 +47,8 @@ jobs:
           bun test tests/media-preview.test.tsx
           bun test tests/platform-readiness.test.tsx
           bun test tests/checkout-entry.test.tsx
+          bun test tests/publications-editor.test.tsx
+          bun test tests/cover-editor.test.tsx
       - name: Install isolated security test tooling
         run: |
           bun add --dev @firebase/rules-unit-testing firebase-tools

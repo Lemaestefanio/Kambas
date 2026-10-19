@@ -56,7 +56,9 @@ export function CoverEditor({ creator, onChange, onUpload, disabled = false }: C
   const video = creator.bannerVideo || (looksLikeVideo(creator.banner) ? creator.banner : '');
   const patch = (changes: Partial<CoverSettings>, media: Partial<Creator> = {}) => {
     const next = { ...cover, ...changes };
-    for (const key of Object.keys(next) as Array<keyof CoverSettings>) if (next[key] === undefined) delete next[key];
+    if (next.startsAt === undefined) delete next.startsAt;
+    if (next.endsAt === undefined) delete next.endsAt;
+    if (next.viewerCount === undefined) delete next.viewerCount;
     onChange({ ...creator, ...media, cover: next });
   };
   const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
