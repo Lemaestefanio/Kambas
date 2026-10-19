@@ -6,6 +6,7 @@ import type { SiteSettings } from '../cms/types';
 import { CREATORS } from '../data/content';
 import { COPY_FIELDS, DEFAULT_SITE_SETTINGS } from '../cms/defaults';
 import { useSiteContent } from '../cms/SiteContent';
+import { AdminPageLinks } from '../cms/AdminPageLinks';
 import { BANK_FIELDS, FAQ_FIELD, PROFILE_SECTIONS, StructuredField, StructuredFields, itemId } from '../cms/editor';
 import { deleteCreatorFromFirestore, onAdminAuthChange, publishInitialContent, saveCreatorToFirestore, saveSiteSettings, signInWithGoogle, signOutUser, uploadAdminMedia } from '../firebase';
 
@@ -169,19 +170,25 @@ export const AdminPanelModal: React.FC<AdminPanelModalProps> = ({ isOpen, onClos
           {success && <p role="status" className="flex items-start gap-2 rounded-lg bg-emerald-500/10 px-4 py-3 text-sm text-emerald-200"><CheckCircle2 size={17} className="mt-0.5 shrink-0" />{success}</p>}
         </div>
         <main className="min-h-0 flex-1 overflow-y-auto p-5"><fieldset disabled={busy} className="min-w-0">
-          {tab === 'profiles' && <div className="grid gap-6 md:grid-cols-[220px_minmax(0,1fr)]">
+          {tab === 'profiles' && <div className="grid gap-6 md:grid-cols-[230px_minmax(0,1fr)]">
             <aside className="space-y-4">
-              <label className="block text-xs font-semibold uppercase tracking-wide text-slate-400" htmlFor="cms-profile-select">Perfil</label>
-              <select id="cms-profile-select" value={draft?.id || ''} onChange={(event) => chooseProfile(event.target.value)} className="w-full rounded-lg border border-white/15 bg-[#11131d] p-3 text-sm">
-                {newProfile && draft && <option value={draft.id}>Novo perfil (rascunho)</option>}{creators.map((creator) => <option key={creator.id} value={creator.id}>{creator.name}</option>)}
-              </select>
+              <div><h2 className="text-xs font-semibold uppercase tracking-wide text-slate-400">Escolhe a criadora</h2><p className="mt-1 text-xs text-slate-500">Cada perfil tem os seus próprios conteúdos.</p></div>
+              <div role="group" aria-label="Criadoras" className="grid grid-cols-2 gap-2 md:grid-cols-1">
+                {creators.map((creator) => <button key={creator.id} type="button" aria-pressed={!newProfile && draft?.id === creator.id} onClick={() => { if (draft?.id !== creator.id) chooseProfile(creator.id); }} className={`flex min-w-0 items-center gap-2.5 rounded-xl border p-2.5 text-left ${!newProfile && draft?.id === creator.id ? 'border-pink-400/60 bg-pink-500/10' : 'border-white/10 hover:bg-white/5'}`}>
+                  {creator.avatar ? <img src={creator.avatar} alt="" loading="lazy" className="h-10 w-10 shrink-0 rounded-full bg-white/5 object-cover" /> : <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-pink-500/15 text-sm font-semibold text-pink-200">{creator.name.slice(0, 1)}</span>}
+                  <span className="min-w-0"><span className="block truncate text-sm font-medium">{creator.name}</span><span className="block truncate text-xs text-slate-400">{creator.handle}</span></span>
+                </button>)}
+                {newProfile && draft && <div className="flex items-center gap-2 rounded-xl border border-pink-400/60 bg-pink-500/10 p-3 text-sm text-pink-100"><Plus size={16} /><span className="min-w-0 truncate">{draft.name} · rascunho</span></div>}
+              </div>
               <button type="button" className={`${buttonClass} w-full`} onClick={() => { if (confirmProfileChange()) { setDraft(newCreator()); setNewProfile(true); setProfileDirty(true); setSection('profile'); setError(''); setSuccess(''); } }}><Plus size={16} /> Criar perfil</button>
-              <nav aria-label="Campos do perfil" className="flex gap-1 overflow-x-auto md:block md:space-y-1">{Object.entries(PROFILE_SECTIONS).map(([id, config]) => <button key={id} type="button" onClick={() => setSection(id)} className={`block w-full whitespace-nowrap rounded-lg px-3 py-2.5 text-left text-sm ${section === id ? 'bg-white/10 text-white' : 'text-slate-400 hover:bg-white/5'}`}>{config.label}</button>)}</nav>
             </aside>
             <section className="min-w-0 space-y-5">
-              {draft ? <><div><h2 className="text-xl font-semibold">{PROFILE_SECTIONS[section].label}</h2><p className="mt-1 text-xs text-slate-400">{newProfile ? 'Este perfil só aparece na página depois de o guardares.' : `A editar: ${draft.name}`}</p></div>
-                <StructuredFields fields={PROFILE_SECTIONS[section].fields} value={draft} onChange={updateDraft} onUpload={upload} path="profile" />
-                {!newProfile && <div className="border-t border-white/10 pt-5"><button type="button" disabled={creators.length <= 1} onClick={removeProfile} className={`${buttonClass} text-rose-300`}><Trash2 size={16} /> Eliminar perfil</button>{creators.length <= 1 && <p className="mt-2 text-xs text-slate-500">Mantém pelo menos um perfil na página.</p>}</div>}
+              {draft ? <>
+                <div><h2 className="text-xl font-semibold">{draft.name}</h2><p className="mt-1 text-xs text-slate-400">{newProfile ? 'Este perfil só aparece na página depois de o guardares.' : 'Edita os conteúdos e os links desta criadora.'}</p></div>
+                <nav aria-label="Abas do perfil" className="grid grid-cols-2 gap-2 lg:grid-cols-3">{Object.entries(PROFILE_SECTIONS).map(([id, config]) => <button key={id} type="button" aria-pressed={section === id} onClick={() => setSection(id)} className={`min-w-0 rounded-lg border px-3 py-2.5 text-left text-xs leading-relaxed sm:text-sm ${section === id ? 'border-pink-400/50 bg-pink-500/15 text-pink-100' : 'border-white/10 text-slate-400 hover:bg-white/5'}`}>{config.label}</button>)}</nav>
+                <div><h3 className="text-lg font-semibold">{PROFILE_SECTIONS[section].label}</h3>{PROFILE_SECTIONS[section].hint && <p className="mt-2 text-xs leading-relaxed text-slate-400">{PROFILE_SECTIONS[section].hint}</p>}</div>
+                {section === 'links' ? <AdminPageLinks creatorId={draft.id} creatorName={draft.name} isNew={newProfile} hasChanges={profileDirty} /> : <StructuredFields fields={PROFILE_SECTIONS[section].fields} value={draft} onChange={updateDraft} onUpload={upload} path="profile" />}
+                {!newProfile && section === 'profile' && <div className="border-t border-white/10 pt-5"><button type="button" disabled={creators.length <= 1} onClick={removeProfile} className={`${buttonClass} text-rose-300`}><Trash2 size={16} /> Eliminar perfil</button>{creators.length <= 1 && <p className="mt-2 text-xs text-slate-500">Mantém pelo menos um perfil na página.</p>}</div>}
               </> : <p className="text-sm text-slate-400">Cria um perfil ou publica o conteúdo original na secção “Publicação inicial”.</p>}
             </section>
           </div>}

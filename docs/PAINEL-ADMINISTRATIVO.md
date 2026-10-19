@@ -6,14 +6,16 @@ Esta versão prepara o painel de gestão do site aprovado, mantendo os textos, a
 
 Depois de configurar o Firebase e hospedar esta versão num domínio autorizado:
 
-1. Abrir `/admin` no endereço do site.
+1. Abrir `/admin-luanda-prive` no endereço do site (`/admin` também funciona).
 2. Entrar com a conta Google autorizada como administradora.
 3. Na primeira configuração, publicar o conteúdo inicial pelo botão do painel. Esse procedimento não deve substituir documentos já existentes.
-4. Selecionar um perfil e editar os campos, planos, publicações, imagens, vídeos, destaques, mensagens ou áudios.
+4. Clicar na fotografia ou no nome da criadora e escolher uma das seis abas: **Perfil & Fotos**, **Fotos & Vídeos do Feed**, **Vídeo com Paywall**, **Stories**, **Preços & Links de Checkout** ou **Links das 4 Páginas**. Os áudios ficam numa secção do feed.
 5. Nas definições gerais, editar os textos de cada secção, as perguntas e respostas frequentes e os dados públicos de pagamento.
 6. Guardar e aguardar a confirmação. Só uma gravação confirmada pelo banco é apresentada como concluída.
 
 Os textos com marcadores como `{name}` inserem automaticamente o nome correspondente. Podem ser traduzidos ou alterados mantendo os marcadores necessários. A edição de conteúdo não altera automaticamente o desenho do logótipo, os ícones, as cores ou a estrutura visual.
+
+A aba de links apresenta os quatro endereços da criadora selecionada: página principal, perfil com checkout direto, promoção e mensagens. O parâmetro `creator` mantém a criadora correta quando o visitante abre o link. Os links usam o domínio onde o site está aberto; num ficheiro local só ficam disponíveis depois da hospedagem. O painel confirma a cópia apenas depois de ela ser concluída.
 
 Os ficheiros enviados pelo painel ficam no armazenamento do Firebase. Um ficheiro guardado apenas no computador ou num endereço temporário `blob:`/`idb:` não é publicado como ficheiro partilhado.
 

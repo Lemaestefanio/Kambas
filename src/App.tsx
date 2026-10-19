@@ -38,6 +38,7 @@ import {
 } from './firebase';
 import { User as FirebaseUser } from 'firebase/auth';
 import { useSiteContent } from './cms/SiteContent';
+import { getRequestedCreatorId } from './utils/creatorRoute';
 
 export type PageMode = 'login-first' | 'direct-pay' | 'teaser-promo';
 export type ActiveView = 'feed' | 'messages' | 'comments' | 'checkout';
@@ -107,7 +108,9 @@ export default function App() {
   const { copy } = useSiteContent();
 
   const [creatorsList, setCreatorsList] = useState<Creator[]>(getInitialCreators);
-  const [activeCreatorId, setActiveCreatorId] = useState<string>(CREATORS[0].id);
+  const [activeCreatorId, setActiveCreatorId] = useState<string>(() =>
+    getRequestedCreatorId(window.location.search) || CREATORS[0].id
+  );
   const [activeTab, setActiveTab] = useState<ContentTab>('posts');
   const [selectedPlan, setSelectedPlan] = useState<Plan | null>(null);
   const [isPlansModalOpen, setIsPlansModalOpen] = useState(false);

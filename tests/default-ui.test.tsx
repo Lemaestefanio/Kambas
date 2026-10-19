@@ -126,3 +126,25 @@ describe('public dialogs retain their approved default markup', () => {
     });
   }
 });
+
+describe('administrative sharing links open the selected profile', () => {
+  for (const path of ['/', '/perfil-3', '/promo-3', '/mensagens']) {
+    test(path, async () => {
+      const { profilePageUrl } = await current('cms/AdminPageLinks.tsx');
+      const selected = creators[1];
+      const url = new URL(profilePageUrl('https://preview.example', path, selected.id));
+      browser.setRoute(url.pathname + url.search);
+      const html = renderToStaticMarkup(<Provider><CurrentApp /></Provider>);
+      const expectedContent = path === '/mensagens' ? selected.name : selected.bio.slice(0, 160);
+      const escaped = renderToStaticMarkup(<>{expectedContent}</>);
+      expect(html).toContain(escaped);
+    });
+  }
+
+  test('a deleted or unknown profile link falls back to the available catalogue', () => {
+    browser.setRoute('/');
+    const expected = renderToStaticMarkup(<Provider><CurrentApp /></Provider>);
+    browser.setRoute('/?creator=deleted-profile');
+    expect(renderToStaticMarkup(<Provider><CurrentApp /></Provider>)).toBe(expected);
+  });
+});

@@ -3,7 +3,7 @@ import { ArrowDown, ArrowUp, Plus, Trash2, Upload } from 'lucide-react';
 
 export interface EditorField {
   label: string;
-  kind?: 'text' | 'long' | 'number' | 'boolean' | 'object' | 'array' | 'select';
+  kind?: 'text' | 'long' | 'number' | 'boolean' | 'object' | 'array' | 'select' | 'visibility';
   fields?: Record<string, EditorField>;
   item?: EditorField;
   template?: () => unknown;
@@ -46,6 +46,7 @@ export function StructuredField({ field, value, onChange, onUpload, path }: Edit
       </div>)}
     </section>;
   }
+  if (field.kind === 'visibility') return <fieldset className="space-y-2"><legend className="mb-2 text-sm font-medium text-slate-200">{field.label}</legend><div className="grid gap-2 sm:grid-cols-2">{[{ value: false, label: '🔒 Desfoque VIP' }, { value: true, label: '👁️ Visibilidade Total' }].map((option) => <label key={String(option.value)} className={`flex cursor-pointer items-center gap-2 rounded-lg border p-3 text-sm ${Boolean(value) === option.value ? 'border-pink-400/60 bg-pink-500/10 text-pink-100' : 'border-white/10 text-slate-300'}`}><input type="radio" name={id} checked={Boolean(value) === option.value} onChange={() => onChange(option.value)} className="accent-pink-500" />{option.label}</label>)}</div>{field.hint && <p className="text-xs leading-relaxed text-slate-400">{field.hint}</p>}</fieldset>;
   if (field.kind === 'boolean') return <label htmlFor={id} className="flex cursor-pointer items-center gap-3 rounded-lg border border-white/10 p-3 text-sm text-slate-200"><input id={id} type="checkbox" checked={Boolean(value)} onChange={(event) => onChange(event.target.checked)} className="h-4 w-4 accent-pink-500" /><span>{field.label}{field.hint && <span className="mt-1 block text-xs text-slate-400">{field.hint}</span>}</span></label>;
   return <div className="space-y-1.5"><label htmlFor={id} className="block text-sm font-medium text-slate-200">{field.label}</label>
     {field.kind === 'long' ? <textarea id={id} className={inputClass} rows={4} value={value ?? ''} onChange={(event) => onChange(event.target.value)} />
@@ -69,41 +70,42 @@ const video = (label: string): EditorField => ({ label, media: 'video/*' });
 const object = (label: string, fields: Record<string, EditorField>): EditorField => ({ label, kind: 'object', fields });
 const array = (label: string, item: EditorField, template: () => unknown): EditorField => ({ label, kind: 'array', item, template });
 
-export const PROFILE_SECTIONS: Record<string, { label: string; fields: Record<string, EditorField> }> = {
-  profile: { label: 'Perfil e apresentação', fields: {
+const visibility = (): EditorField => ({ label: 'Visibilidade do conteúdo', kind: 'visibility' });
+
+export const PROFILE_SECTIONS: Record<string, { label: string; hint?: string; fields: Record<string, EditorField> }> = {
+  profile: { label: 'Perfil & Fotos', fields: {
     name: text('Nome completo'), shortName: text('Nome curto'), handle: text('Nome de utilizador (@)'), age: number('Idade', 18), city: text('Cidade'), neighborhood: text('Bairro'), bio: text('Biografia', { kind: 'long' }),
-    avatar: image('Fotografia de perfil'), banner: image('Imagem de capa'), bannerVideo: video('Vídeo de capa'), verified: bool('Mostrar selo de verificação'), isOnline: bool('Mostrar estado online'),
+    avatar: image('Fotografia de perfil (avatar)'), banner: image('Imagem de capa / banner'), bannerVideo: video('Vídeo de capa'), whatsappNumber: text('Número de WhatsApp'), incomingMessage: text('Mensagem que aparece ao visitante', { kind: 'long' }), verified: bool('Mostrar selo de verificação'), isOnline: bool('Mostrar estado online'),
     stats: object('Números apresentados no perfil', { photos: number('Fotografias'), videos: number('Vídeos'), likes: text('Gostos (texto apresentado)') }), postCount: number('Contagem de publicações'), mediaCount: number('Contagem de média'),
   } },
-  messages: { label: 'Mensagens e pagamentos', fields: {
-    incomingMessage: text('Mensagem que aparece ao visitante', { kind: 'long' }), whatsappNumber: text('Número de WhatsApp'), previewVideo: video('Vídeo de apresentação'), videoPaywallSeconds: { ...number('Duração da prévia de vídeo (segundos)'), defaultValue: 4.5 },
-    checkoutUrl: text('Link de pagamento principal'), tipCheckoutUrl: text('Link para enviar gorjeta'), customPaymentButtonText: text('Texto personalizado do botão de pagamento'), preferInternalCheckout: { ...bool('Usar a página interna de pagamento'), defaultValue: true },
-    mimoPrices: array('Valores dos mimos', number('Valor'), () => 0), mimoCheckoutUrls: array('Links de pagamento dos mimos', text('Link de pagamento'), () => ''),
-  } },
-  plans: { label: 'Planos e preços', fields: {
-    plans: array('Planos', object('Detalhes do plano', {
-      duration: text('Nome / duração'), price: text('Preço apresentado'), rawPrice: number('Preço numérico'), periodLabel: text('Período apresentado'), savings: text('Texto da poupança'), badge: text('Texto do destaque'),
-      badgeType: { label: 'Estilo do destaque', kind: 'select', options: [{ value: '', label: 'Sem destaque' }, { value: 'primary', label: 'Principal' }, { value: 'accent', label: 'Alternativo' }, { value: 'popular', label: 'Popular' }] },
-      isPopular: bool('Marcar como popular'), checkoutUrl: text('Link de pagamento'), features: array('Benefícios', text('Benefício'), () => ''),
-    }), () => ({ id: itemId(), duration: 'Novo plano', price: '0 Kz', rawPrice: 0, periodLabel: '', checkoutUrl: '', features: [], isPopular: false })),
-  } },
-  posts: { label: 'Publicações', fields: {
-    posts: array('Publicações', object('Detalhes da publicação', {
+  feed: { label: 'Fotos & Vídeos do Feed', hint: 'Envia ficheiros do telemóvel ou computador. O desfoque controla a apresentação na página; a proteção do acesso ao conteúdo pago exige validação de pagamento no servidor.', fields: {
+    posts: array('Fotos e vídeos do feed', object('Detalhes da publicação', {
       time: text('Data / texto do tempo'), text: text('Texto da publicação', { kind: 'long' }), type: { label: 'Tipo', kind: 'select', options: [{ value: 'photo', label: 'Fotografia' }, { value: 'video', label: 'Vídeo' }] },
-      image: image('Fotografia / imagem de apresentação'), video: video('Vídeo'), duration: text('Duração apresentada'), likes: number('Gostos apresentados'), comments: number('Comentários apresentados'), unlocked: bool('Mostrar como prévia aberta'),
+      image: image('Fotografia / imagem de apresentação'), video: video('Vídeo'), duration: text('Duração apresentada'), likes: number('Gostos apresentados'), comments: number('Comentários apresentados'), unlocked: visibility(),
     }), () => ({ id: itemId(), time: 'Agora', text: '', type: 'photo', image: '', likes: 0, comments: 0, unlocked: false })),
-  } },
-  gallery: { label: 'Galeria', fields: {
-    galleryPhotos: array('Fotografias da galeria', object('Fotografia', { url: image('Imagem'), caption: text('Legenda'), likes: number('Gostos apresentados'), unlocked: bool('Mostrar como prévia aberta') }), () => ({ id: itemId(), url: '', caption: '', likes: 0, unlocked: false })),
-  } },
-  highlights: { label: 'Destaques / stories', fields: {
-    highlights: array('Destaques', object('Destaque', {
-      title: text('Título'), coverImage: image('Imagem de capa'), mediaUrl: text('Ficheiro do destaque', { media: 'image/*,video/*' }), type: { label: 'Tipo', kind: 'select', options: [{ value: 'image', label: 'Fotografia' }, { value: 'video', label: 'Vídeo' }] }, caption: text('Legenda', { kind: 'long' }), time: text('Data / texto do tempo'),
-    }), () => ({ id: itemId(), title: 'Novo destaque', coverImage: '', mediaUrl: '', type: 'image', caption: '', time: '' })),
-  } },
-  voice: { label: 'Áudios', fields: {
+    galleryPhotos: array('Fotografias da galeria', object('Fotografia', { url: image('Imagem'), caption: text('Legenda'), likes: number('Gostos apresentados'), unlocked: visibility() }), () => ({ id: itemId(), url: '', caption: '', likes: 0, unlocked: false })),
     voiceNotes: array('Notas de voz', object('Nota de voz', { title: text('Título'), duration: text('Duração apresentada'), date: text('Data'), url: text('Ficheiro de áudio', { media: 'audio/*' }), unlocked: bool('Mostrar como prévia aberta') }), () => ({ id: itemId(), title: 'Novo áudio', duration: '', date: '', url: '', unlocked: false })),
   } },
+  paywall: { label: 'Vídeo com Paywall', hint: 'Configura o teaser e o momento em que aparece o pedido de pagamento.', fields: {
+    previewVideo: video('Vídeo teaser / apresentação'), videoPaywallSeconds: { ...number('Segundos antes de pausar o vídeo'), defaultValue: 4.5, hint: 'Por exemplo: 3 ou 4.5 segundos.' },
+    checkoutUrl: text('Link de pagamento principal'), customPaymentButtonText: text('Texto personalizado do botão de pagamento'), preferInternalCheckout: { ...bool('Usar a página interna de pagamento'), defaultValue: true },
+  } },
+  stories: { label: 'Stories', fields: {
+    highlights: array('Stories e destaques', object('Destaque', {
+      title: text('Título'), coverImage: image('Capa do destaque'), mediaUrl: text('Fotografia ou vídeo do story', { media: 'image/*,video/*' }), type: { label: 'Tipo', kind: 'select', options: [{ value: 'image', label: 'Fotografia' }, { value: 'video', label: 'Vídeo' }] }, caption: text('Legenda', { kind: 'long' }), time: text('Data / texto do tempo'),
+    }), () => ({ id: itemId(), title: 'Novo destaque', coverImage: '', mediaUrl: '', type: 'image', caption: '', time: '' })),
+  } },
+  plans: { label: 'Preços & Links de Checkout', fields: {
+    plans: array('Planos em Kwanzas', object('Detalhes do plano', {
+      duration: text('Nome / duração'), price: text('Preço apresentado (Kz)'), rawPrice: number('Preço numérico em Kwanzas'), periodLabel: text('Período apresentado'), savings: text('Texto da poupança'), badge: text('Texto do destaque'),
+      badgeType: { label: 'Estilo do destaque', kind: 'select', options: [{ value: '', label: 'Sem destaque' }, { value: 'primary', label: 'Principal' }, { value: 'accent', label: 'Alternativo' }, { value: 'popular', label: 'Popular' }] },
+      isPopular: bool('Marcar como popular'), checkoutUrl: text('Link de checkout externo'), features: array('Benefícios', text('Benefício'), () => ''),
+    }), () => ({ id: itemId(), duration: 'Novo plano', price: '0 Kz', rawPrice: 0, periodLabel: '', checkoutUrl: '', features: [], isPopular: false })),
+    checkoutUrl: text('Link de pagamento principal'), tipCheckoutUrl: text('Link para enviar gorjeta'), preferInternalCheckout: { ...bool('Usar a página interna de pagamento'), defaultValue: true },
+    mimoPrices: { ...array('Valores dos mimos em Kwanzas', number('Valor em Kz'), () => 0), hint: 'Mantém a mesma ordem dos links abaixo: o primeiro valor corresponde ao primeiro link.' },
+    mimoCheckoutUrls: array('Links de checkout dos mimos', text('Link de pagamento'), () => ''),
+  } },
+  links: { label: 'Links das 4 Páginas', fields: {} },
 };
 
 export const FAQ_FIELD: EditorField = array('Perguntas frequentes', object('Pergunta e resposta', { question: text('Pergunta'), answer: text('Resposta', { kind: 'long' }) }), () => ({ question: '', answer: '' }));
