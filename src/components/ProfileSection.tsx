@@ -79,7 +79,7 @@ export const ProfileSection: React.FC<ProfileSectionProps> = ({
           />
         ) : (
           <img
-            src={resolvedBanner}
+            src={resolvedBanner || undefined}
             alt={copy('home.profile.cover', { name: creator.name })}
             loading="eager"
             fetchPriority="high"
@@ -99,7 +99,7 @@ export const ProfileSection: React.FC<ProfileSectionProps> = ({
           <div className="relative group">
             <div className="w-[96px] h-[96px] rounded-full border-[4px] border-white overflow-hidden bg-white shadow-lg relative">
               <img
-                src={resolvedAvatar}
+                src={resolvedAvatar || undefined}
                 alt={creator.name}
                 loading="lazy"
                 decoding="async"

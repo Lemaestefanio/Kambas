@@ -562,7 +562,7 @@ export function PlatformContent() {
 
           {/* Barra Inferior Fixa para Desktops/Tablets */}
           <div className="hidden sm:block">
-            <StickyBottomBar creator={currentCreator} onUnlockClick={handleOpenPlans} />
+            {currentCreator.plans.length > 0 && <StickyBottomBar creator={currentCreator} onUnlockClick={handleOpenPlans} />}
           </div>
 
           {/* Barra de Navegação Inferior Estilo OnlyFans Mobile */}
