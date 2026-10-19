@@ -2,6 +2,7 @@ import React from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { afterAll, beforeAll, describe, expect, mock, setSystemTime, test } from 'bun:test';
 import { installReadOnlyBrowser } from './mock-browser';
+import { LuandaPriveLogo } from '../src/components/LuandaPriveLogo';
 
 // CI restores .baseline/src from the approved original commit before this test.
 // Exact comparisons still protect the unchanged dialogs and global styles.
@@ -36,6 +37,9 @@ const firebaseStub = {
 
 mock.module(new URL('../src/firebase.ts', import.meta.url).pathname, () => firebaseStub);
 mock.module(new URL('../.baseline/src/firebase.ts', import.meta.url).pathname, () => firebaseStub);
+// The supplied brand artwork is an intentional shared change. Render that same
+// component in baseline dialogs so their remaining markup stays fully compared.
+mock.module(new URL('../.baseline/src/components/LuandaPriveLogo.tsx', import.meta.url).pathname, () => ({ LuandaPriveLogo }));
 
 const original = (path: string) => import(new URL(`../.baseline/src/${path}`, import.meta.url).href);
 const current = (path: string) => import(new URL(`../src/${path}`, import.meta.url).href);
@@ -97,6 +101,17 @@ describe('public pages wait for current published content', () => {
     ]);
     expect(actual).toBe(expected);
   });
+});
+
+test('the shared brand uses the supplied image with accessible text and stable proportions', () => {
+  const html = renderToStaticMarkup(<LuandaPriveLogo />);
+  const images = html.match(/<img\b[^>]*>/g);
+  expect(images).toHaveLength(1);
+  expect(images![0]).toContain('src="/assets/platform-logo.png"');
+  expect(images![0]).toContain('alt="Luanda Privé"');
+  expect(images![0]).toContain('width="900"');
+  expect(images![0]).toContain('height="300"');
+  expect(html).not.toContain('<svg');
 });
 
 // These open states are not visible in an initial App render. Their text was
