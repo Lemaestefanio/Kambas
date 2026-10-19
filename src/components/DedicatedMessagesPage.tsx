@@ -113,19 +113,19 @@ export const DedicatedMessagesPage: React.FC<DedicatedMessagesPageProps> = ({
   };
 
   return (
-    <div className="min-h-screen bg-[#0e1217] text-white flex flex-col max-w-[600px] mx-auto shadow-2xl relative">
+    <div className="mobile-screen fixed inset-x-0 z-50 bg-[#0e1217] text-white flex flex-col max-w-[600px] mx-auto shadow-2xl overflow-hidden">
       {/* Header Estilo OnlyFans Chat */}
-      <header className="sticky top-0 z-30 bg-[#161b22]/95 backdrop-blur-md border-b border-slate-800 p-3.5 flex items-center justify-between shadow-md">
-        <div className="flex items-center gap-3">
+      <header className="mobile-safe-top shrink-0 z-30 bg-[#161b22]/95 backdrop-blur-md border-b border-slate-800 p-3 flex items-center justify-between gap-2 shadow-md">
+        <div className="flex min-w-0 flex-1 items-center gap-2">
           <button
             onClick={onBack}
-            className="w-9 h-9 rounded-full bg-slate-800 hover:bg-slate-700 flex items-center justify-center text-slate-300 hover:text-white transition-colors"
+            className="w-11 h-11 shrink-0 rounded-full bg-slate-800 hover:bg-slate-700 flex items-center justify-center text-slate-300 hover:text-white transition-colors"
             title={copy("overlay.dedicated-messages-page.017")}
           >
             <ArrowLeft className="w-5 h-5" />
           </button>
 
-          <div className="relative">
+          <div className="relative shrink-0">
             <img
               src={creator.avatar}
               alt={creator.name}
@@ -134,9 +134,9 @@ export const DedicatedMessagesPage: React.FC<DedicatedMessagesPageProps> = ({
             <span className="absolute bottom-0 right-0 w-3 h-3 rounded-full bg-emerald-500 border-2 border-[#161b22]" />
           </div>
 
-          <div>
+          <div className="min-w-0 flex-1">
             <div className="flex items-center gap-1.5">
-              <h2 className="text-sm font-bold text-white truncate max-w-[170px] sm:max-w-[220px]">
+              <h2 className="text-sm font-bold text-white truncate">
                 {creator.name}
               </h2>
             </div>
@@ -149,7 +149,7 @@ export const DedicatedMessagesPage: React.FC<DedicatedMessagesPageProps> = ({
         {/* WhatsApp VIP / Botão de Desbloqueio */}
         <button
           onClick={onOpenPlans}
-          className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-gradient-to-r from-rose-600 to-rose-500 hover:from-rose-500 hover:to-rose-400 text-white text-xs font-bold shadow-md active:scale-95 transition-all"
+          className="flex min-h-11 shrink-0 items-center gap-1.5 px-2.5 py-1.5 rounded-full bg-gradient-to-r from-rose-600 to-rose-500 hover:from-rose-500 hover:to-rose-400 text-white text-xs font-bold shadow-md active:scale-95 transition-all"
         >
           <Crown className="w-3.5 h-3.5" />
           <span>{copy("overlay.dedicated-messages-page.002")}</span>
@@ -157,13 +157,13 @@ export const DedicatedMessagesPage: React.FC<DedicatedMessagesPageProps> = ({
       </header>
 
       {/* Security & Discretion Top Bar */}
-      <div className="bg-slate-900/90 py-1.5 px-4 text-center border-b border-slate-800 flex items-center justify-center gap-2 text-[10px] text-slate-400">
+      <div className="shrink-0 bg-slate-900/90 py-1.5 px-4 text-center border-b border-slate-800 flex items-center justify-center gap-2 text-[10px] text-slate-400">
         <ShieldCheck className="w-3.5 h-3.5 text-emerald-500" />
         <span>{copy("overlay.dedicated-messages-page.003")}</span>
       </div>
 
       {/* Messages Scroll Area */}
-      <div className="flex-1 p-3.5 sm:p-4 overflow-y-auto space-y-4">
+      <div className="mobile-scroll flex-1 p-3.5 sm:p-4 space-y-4">
         {/* Timestamp */}
         <div className="text-center my-2">
           <span className="text-[10px] font-semibold text-slate-500 bg-slate-800/60 px-3 py-1 rounded-full uppercase tracking-wider">{copy("overlay.dedicated-messages-page.004")}</span>
@@ -189,7 +189,7 @@ export const DedicatedMessagesPage: React.FC<DedicatedMessagesPageProps> = ({
             alt={creator.shortName}
             className="w-7 h-7 rounded-full object-cover shrink-0 mt-1"
           />
-          <div className="bg-[#1f2633] p-2 sm:p-3 rounded-2xl rounded-tl-none border border-slate-700/70 shadow-xl w-full">
+          <div className="min-w-0 bg-[#1f2633] p-2 sm:p-3 rounded-2xl rounded-tl-none border border-slate-700/70 shadow-xl w-full">
             <div className="relative rounded-xl overflow-hidden bg-black aspect-[4/5] sm:aspect-square flex items-center justify-center group">
               <video
                 ref={videoRef}
@@ -337,31 +337,31 @@ export const DedicatedMessagesPage: React.FC<DedicatedMessagesPageProps> = ({
       </div>
 
       {/* Floating CTA Banner inside chat */}
-      <div className="p-2.5 bg-gradient-to-r from-slate-900 via-rose-950 to-slate-900 border-t border-rose-900/40 text-center flex items-center justify-between px-4">
+      <div className="shrink-0 gap-2 p-2.5 bg-gradient-to-r from-slate-900 via-rose-950 to-slate-900 border-t border-rose-900/40 text-center flex items-center justify-between px-4">
         <div className="text-left">
           <p className="text-xs font-bold text-white">{copy("overlay.dedicated-messages-page.014")}</p>
           <p className="text-[10px] text-rose-300">{copy("overlay.dedicated-messages-page.015")}</p>
         </div>
         <button
           onClick={onOpenPlans}
-          className="px-3 py-1.5 bg-rose-600 hover:bg-rose-500 text-white font-bold text-xs rounded-xl shadow transition-all active:scale-95"
+          className="min-h-11 shrink-0 px-3 py-1.5 bg-rose-600 hover:bg-rose-500 text-white font-bold text-xs rounded-xl shadow transition-all active:scale-95"
         >{copy("overlay.dedicated-messages-page.016")}</button>
       </div>
 
       {/* Bottom Message Input Bar */}
-      <footer className="p-3 bg-[#161b22] border-t border-slate-800 safe-bottom">
+      <footer className="mobile-composer p-3 bg-[#161b22] border-t border-slate-800">
         <form onSubmit={handleSendMessage} className="flex items-center gap-2">
           <input
             type="text"
             placeholder={copy("overlay.dedicated-messages-page.020", { name: creator.shortName })}
             value={inputMessage}
             onChange={(e) => setInputMessage(e.target.value)}
-            className="flex-1 bg-slate-800/90 border border-slate-700 rounded-full px-4 py-2.5 text-xs text-white placeholder-slate-400 focus:outline-none focus:border-[#00aff0]"
+            className="min-w-0 flex-1 bg-slate-800/90 border border-slate-700 rounded-full px-4 py-2.5 text-base text-white placeholder-slate-400 focus:outline-none focus:border-[#00aff0]"
           />
           <button
             type="submit"
             disabled={!inputMessage.trim()}
-            className="w-10 h-10 rounded-full bg-[#00aff0] hover:bg-[#009ed9] text-white flex items-center justify-center transition-all active:scale-95 disabled:opacity-40"
+            className="w-11 h-11 shrink-0 rounded-full bg-[#00aff0] hover:bg-[#009ed9] text-white flex items-center justify-center transition-all active:scale-95 disabled:opacity-40"
             aria-label={copy("overlay.dedicated-messages-page.018")}
           >
             <Send className="w-4 h-4 ml-0.5" />

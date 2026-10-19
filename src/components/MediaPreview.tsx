@@ -1,8 +1,9 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useRef, useState, useSyncExternalStore } from 'react';
 import { LoaderCircle, Pause, Play, Volume2, VolumeX } from 'lucide-react';
 import type { MediaPreviewSettings } from '../types';
 import { getMediaUrl } from '../utils/mediaStorage';
 import { isMediaPublic, isPreviewAudioAllowed, mediaPreviewSource, previewBlurAmount } from '../utils/mediaPreview';
+import { browserMediaConnection, mediaPlaybackCoordinator, permitsAutomaticVideo } from '../utils/mediaPlayback';
 
 interface MediaPreviewProps {
   kind: 'image' | 'video';
@@ -40,6 +41,11 @@ export const MediaPreview: React.FC<MediaPreviewProps> = ({
 }) => {
   const container = useRef<HTMLDivElement>(null);
   const player = useRef<HTMLVideoElement>(null);
+  const [playbackId] = useState(() => Symbol('media-player'));
+  const lease = useSyncExternalStore(mediaPlaybackCoordinator.subscribe, () => mediaPlaybackCoordinator.lease(playbackId), () => 0);
+  const manualIntent = useRef(false);
+  const [manualPriority, setManualPriority] = useState(false);
+  const [automaticVideoAllowed, setAutomaticVideoAllowed] = useState(() => permitsAutomaticVideo());
   const [nearViewport, setNearViewport] = useState(false);
   const [visible, setVisible] = useState(false);
   const [pageVisible, setPageVisible] = useState(() => typeof document === 'undefined' || !document.hidden);
@@ -53,7 +59,7 @@ export const MediaPreview: React.FC<MediaPreviewProps> = ({
   const audioAllowed = isPreviewAudioAllowed(settings, defaultPublic);
   const source = mediaPreviewSource(src, settings, defaultPublic);
   const imageSource = useResolvedSource(kind === 'image' ? source : settings.posterUrl || poster || '', nearViewport);
-  const videoSource = useResolvedSource(source, kind === 'video' && visible && pageVisible && requestedSource === source);
+  const videoSource = useResolvedSource(source, kind === 'video' && lease > 0 && visible && pageVisible && requestedSource === source);
   const visualStyle: React.CSSProperties = {
     objectPosition,
     ...(!publicMedia ? { filter: `blur(${previewBlurAmount(settings)}px) brightness(0.9)`, transform: 'scale(1.055)' } : {}),
@@ -94,37 +100,66 @@ export const MediaPreview: React.FC<MediaPreviewProps> = ({
   }, []);
 
   useEffect(() => {
+    if (kind !== 'video') return;
+    const connection = browserMediaConnection();
+    const update = () => setAutomaticVideoAllowed(permitsAutomaticVideo(connection));
+    update();
+    connection?.addEventListener?.('change', update);
+    return () => connection?.removeEventListener?.('change', update);
+  }, [kind]);
+
+  useEffect(() => {
+    manualIntent.current = false; setManualPriority(false);
     setRequestedSource(null); setWantsPlayback(false); setPlaying(false); setMuted(true); setFailed(false);
   }, [source, kind]);
 
   useEffect(() => {
     if (kind !== 'video') return;
     if (!visible || !pageVisible || !source) {
+      manualIntent.current = false; setManualPriority(false);
       setWantsPlayback(false); setBuffering(false); setMuted(true);
       return;
     }
-    if (!autoPlay) { setWantsPlayback(false); return; }
+    // Connection changes never cancel a clip that the visitor explicitly chose.
+    if (manualIntent.current) return;
+    if (!autoPlay || !automaticVideoAllowed) { setWantsPlayback(false); return; }
     setNearViewport(true);
     setRequestedSource(source);
     setMuted(true);
     setFailed(false);
     setWantsPlayback(true);
-  }, [visible, pageVisible, source, kind, autoPlay]);
+  }, [visible, pageVisible, source, kind, autoPlay, automaticVideoAllowed]);
+
+  useEffect(() => {
+    if (kind !== 'video' || !wantsPlayback || !visible || !pageVisible || !source || requestedSource !== source) return;
+    // Capture the element: React clears refs before passive unmount cleanup.
+    const video = player.current;
+    return mediaPlaybackCoordinator.request(playbackId, manualPriority, () => {
+      if (video) {
+        video.pause(); video.muted = true;
+        video.removeAttribute('src');
+        video.load();
+      }
+      setPlaying(false); setBuffering(false); setMuted(true);
+    });
+  }, [playbackId, manualPriority, kind, source, requestedSource, wantsPlayback, visible, pageVisible]);
 
   useEffect(() => {
     const video = player.current;
     if (!video) return;
-    if (!wantsPlayback || !visible || !pageVisible) {
+    if (!wantsPlayback || !visible || !pageVisible || !lease) {
       video.pause(); setBuffering(false); return;
     }
     if (!videoSource) return;
+    // A lease can be revoked and restored before React commits; restore its URL.
+    if (video.getAttribute('src') !== videoSource) video.src = videoSource;
     setBuffering(true);
     let active = true;
     void video.play().catch(() => {
-      if (active) { setWantsPlayback(false); setPlaying(false); setBuffering(false); }
+      if (active && mediaPlaybackCoordinator.lease(playbackId) === lease) { setWantsPlayback(false); setPlaying(false); setBuffering(false); }
     });
     return () => { active = false; };
-  }, [wantsPlayback, visible, pageVisible, videoSource]);
+  }, [wantsPlayback, visible, pageVisible, videoSource, lease, playbackId]);
 
   useEffect(() => {
     if (kind !== 'video') return;
@@ -136,20 +171,23 @@ export const MediaPreview: React.FC<MediaPreviewProps> = ({
     return () => document.removeEventListener('visibilitychange', pauseWhenHidden);
   }, [kind]);
 
-  const activePlayback = playing && !buffering && visible && pageVisible && wantsPlayback && Boolean(videoSource);
+  const activePlayback = playing && !buffering && visible && pageVisible && wantsPlayback && lease > 0 && Boolean(videoSource);
   useEffect(() => { onPlaybackChange?.(activePlayback); }, [activePlayback, onPlaybackChange]);
 
   const togglePlayback = (event: React.MouseEvent) => {
     event.stopPropagation();
+    const pauseRequested = wantsPlayback && mediaPlaybackCoordinator.lease(playbackId) > 0;
+    manualIntent.current = !pauseRequested;
+    setManualPriority(!pauseRequested);
     if (failed) player.current?.load();
     setFailed(false);
     setNearViewport(true);
     setRequestedSource(source);
-    setWantsPlayback((wanted) => !wanted);
+    setWantsPlayback(!pauseRequested);
   };
 
   const acceptPlaybackEvent = (video: HTMLVideoElement) => {
-    if (visible && pageVisible && wantsPlayback && videoSource) return true;
+    if (visible && pageVisible && wantsPlayback && videoSource && lease > 0 && mediaPlaybackCoordinator.lease(playbackId) === lease) return true;
     // A pending play event may arrive after a scroll, manual pause or tab change.
     video.pause(); setPlaying(false); setBuffering(false);
     return false;
@@ -168,20 +206,20 @@ export const MediaPreview: React.FC<MediaPreviewProps> = ({
         onPlay={(event) => { if (acceptPlaybackEvent(event.currentTarget)) setPlaying(true); }}
         onPlaying={(event) => { if (acceptPlaybackEvent(event.currentTarget)) { setPlaying(true); setBuffering(false); } }}
         onPause={() => setPlaying(false)}
-        onWaiting={() => { if (visible && pageVisible && wantsPlayback && videoSource) setBuffering(true); }}
-        onError={() => { if (visible && pageVisible && videoSource) { setFailed(true); setBuffering(false); setWantsPlayback(false); } }}
+        onWaiting={() => { if (visible && pageVisible && wantsPlayback && videoSource && mediaPlaybackCoordinator.lease(playbackId) === lease && lease > 0) setBuffering(true); }}
+        onError={() => { if (visible && pageVisible && videoSource && mediaPlaybackCoordinator.lease(playbackId) === lease && lease > 0) { setFailed(true); setBuffering(false); setWantsPlayback(false); } }}
       />
       <div className="absolute inset-x-3 bottom-3 z-30 flex items-center justify-between gap-2">
-        <button type="button" onClick={togglePlayback} disabled={!source} aria-busy={buffering} aria-label={!source ? 'Vídeo indisponível' : wantsPlayback ? 'Pausar vídeo' : 'Reproduzir prévia'}
+        <button type="button" onClick={togglePlayback} disabled={!source} aria-busy={buffering} aria-label={!source ? 'Vídeo indisponível' : wantsPlayback && lease > 0 ? 'Pausar vídeo' : 'Reproduzir vídeo'}
           className="flex min-h-11 items-center gap-2 rounded-full border border-white/20 bg-black/70 px-3.5 text-xs font-semibold text-white shadow-lg backdrop-blur-sm hover:bg-black/85 disabled:opacity-60">
-          {buffering ? <LoaderCircle aria-hidden="true" className="h-4 w-4 animate-spin" /> : wantsPlayback ? <Pause aria-hidden="true" className="h-4 w-4" /> : <Play aria-hidden="true" className="h-4 w-4" />}
-          <span>{!source ? 'Vídeo indisponível' : failed ? 'Tentar novamente' : wantsPlayback ? 'Pausar' : 'Ver prévia'}</span>
+          {buffering ? <LoaderCircle aria-hidden="true" className="h-4 w-4 animate-spin" /> : wantsPlayback && lease > 0 ? <Pause aria-hidden="true" className="h-4 w-4" /> : <Play aria-hidden="true" className="h-4 w-4" />}
+          <span>{!source ? 'Vídeo indisponível' : failed ? 'Tentar novamente' : wantsPlayback && lease > 0 ? 'Pausar' : 'Reproduzir'}</span>
         </button>
-        {audioAllowed ? <button type="button" aria-label={muted ? 'Ativar som da prévia' : 'Desativar som da prévia'} aria-pressed={!muted}
+        {audioAllowed ? <button type="button" aria-label={muted ? 'Ativar som' : 'Desativar som'} aria-pressed={!muted}
           onClick={(event) => { event.stopPropagation(); setMuted((current) => !current); }}
           className="flex h-11 w-11 items-center justify-center rounded-full border border-white/20 bg-black/70 text-white shadow-lg hover:bg-black/85">
           {muted ? <VolumeX className="h-4 w-4" /> : <Volume2 className="h-4 w-4" />}
-        </button> : <span className="rounded-full bg-black/70 px-3 py-2 text-[10px] font-medium text-white/85">Prévia sem som</span>}
+        </button> : <span className="rounded-full bg-black/70 px-3 py-2 text-[10px] font-medium text-white/85">Sem som</span>}
       </div>
       {failed && <p role="status" className="absolute inset-x-3 top-3 z-30 rounded-lg bg-black/75 p-2 text-center text-xs text-white">Vídeo indisponível. Tenta novamente.</p>}
     </>}

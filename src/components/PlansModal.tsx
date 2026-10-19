@@ -31,16 +31,16 @@ export const PlansModal: React.FC<PlansModalProps> = ({
   if (!isOpen || !activePlan) return null;
 
   return (
-    <div className="fixed inset-0 z-[9999] flex items-end sm:items-center justify-center bg-black/80 backdrop-blur-sm animate-fade-in p-0 sm:p-4">
+    <div role="dialog" aria-modal="true" aria-label="Escolher plano" className="mobile-overlay fixed inset-0 z-[9999] flex items-end sm:items-center justify-center bg-black/80 p-0 sm:p-4">
       <div
-        className="w-full sm:max-w-md bg-white rounded-t-3xl sm:rounded-2xl shadow-2xl flex flex-col max-h-[92vh] border border-slate-200 overflow-hidden"
+        className="mobile-dialog-panel w-full sm:max-w-md bg-white rounded-t-3xl sm:rounded-2xl shadow-2xl flex flex-col max-h-[92dvh] border border-slate-200 overflow-hidden"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Top Handle on Mobile */}
         <div className="w-12 h-1.5 bg-slate-300 rounded-full mx-auto mt-3 mb-1 sm:hidden" />
 
         {/* Header */}
-        <div className="px-5 py-4 border-b border-slate-100 flex items-center justify-between bg-slate-50">
+        <div className="shrink-0 px-5 py-4 border-b border-slate-100 flex items-center justify-between bg-slate-50">
           <div className="flex items-center gap-3">
             <div className="relative">
               <img
@@ -74,7 +74,7 @@ export const PlansModal: React.FC<PlansModalProps> = ({
         </div>
 
         {/* Scrollable Content */}
-        <div className="p-5 overflow-y-auto space-y-4">
+        <div className="mobile-scroll p-5 overflow-y-auto space-y-4">
           {/* VIP Benefits Box */}
           <div className="bg-[#00aff0]/5 rounded-xl p-3.5 border border-[#00aff0]/20 space-y-2">
             <div className="flex items-center gap-2 text-xs font-bold text-[#00aff0]">
@@ -175,7 +175,7 @@ export const PlansModal: React.FC<PlansModalProps> = ({
         </div>
 
         {/* Bottom CTA Button */}
-        <div className="p-4 border-t border-slate-100 bg-white shadow-lg space-y-2">
+        <div className="mobile-composer p-4 border-t border-slate-100 bg-white shadow-lg space-y-2">
           <button
             onClick={handleContinue}
             className="w-full py-3.5 rounded-full bg-gradient-to-r from-[#00aff0] to-[#0088cc] hover:from-[#009fd9] hover:to-[#007ab8] text-white font-bold text-sm uppercase tracking-wide transition-all shadow-lg shadow-[#00aff0]/30 active:scale-[0.98] flex items-center justify-center gap-2 cursor-pointer"

@@ -44,6 +44,7 @@ jobs:
       - name: Verify age consent, media playback, profile readiness and checkout entry
         run: |
           bun test tests/age-consent.test.ts
+          bun test tests/mobile-viewport.test.tsx
           bun test tests/media-preview.test.tsx
           bun test tests/platform-readiness.test.tsx
           bun test tests/checkout-entry.test.tsx

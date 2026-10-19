@@ -25,8 +25,8 @@ export const BottomNavOnlyFans: React.FC<BottomNavOnlyFansProps> = ({
 }) => {
   const { copy } = useSiteContent();
   return (
-    <div className="fixed bottom-0 left-0 right-0 z-40 bg-white/95 backdrop-blur-md border-t border-slate-200/90 px-2 py-2 safe-bottom shadow-lg">
-      <div className="max-w-[600px] mx-auto flex items-center justify-around">
+    <nav aria-label="Navegação principal" className="mobile-bottom-nav fixed bottom-0 left-0 right-0 z-40 bg-white/95 backdrop-blur-md border-t border-slate-200/90 px-1 py-2 safe-bottom shadow-lg">
+      <div className="max-w-[600px] mx-auto grid grid-cols-6 gap-0.5 [&>button]:min-h-11 [&>button]:min-w-0 [&>button]:justify-center [&>button>span]:max-w-full [&>button>span]:truncate">
         <button
           onClick={onHomeClick}
           className="flex flex-col items-center gap-1 text-slate-600 hover:text-[#00aff0] transition-colors p-1"
@@ -104,6 +104,6 @@ export const BottomNavOnlyFans: React.FC<BottomNavOnlyFansProps> = ({
           <span className="text-[10px] font-bold text-rose-600">{copy('home.navigation.plans')}</span>
         </button>
       </div>
-    </div>
+    </nav>
   );
 };

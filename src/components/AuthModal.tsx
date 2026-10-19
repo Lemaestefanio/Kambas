@@ -89,8 +89,8 @@ export const AuthModal: React.FC<AuthModalProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 z-[10000] flex items-center justify-center p-3 sm:p-4 bg-black/85 backdrop-blur-md animate-fadeIn">
-      <div className="bg-white rounded-3xl max-w-md w-full overflow-hidden shadow-2xl border border-slate-100 flex flex-col relative animate-scaleUp">
+    <div role="dialog" aria-modal="true" aria-label="Entrar na plataforma" className="mobile-overlay fixed inset-0 z-[10000] flex items-center justify-center p-3 sm:p-4 bg-black/85">
+      <div className="mobile-dialog-panel mobile-scroll bg-white rounded-3xl max-w-md w-full shadow-2xl border border-slate-100 flex flex-col relative">
         {/* Close Button */}
         <button
           onClick={onClose}

@@ -73,7 +73,7 @@ export const CoverMedia: React.FC<CoverMediaProps> = ({ creator, alt }) => {
       <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/25 via-transparent to-black/10" />
       {cover.type === 'video' && (
         <div className="pointer-events-none absolute inset-x-3 top-3 z-30 flex flex-wrap items-start justify-between gap-2 text-[10px] font-semibold text-white">
-          {cover.state !== 'video' && <span className="rounded-full border border-white/20 bg-black/70 px-3 py-1.5">{cover.state === 'replay' ? 'Reprise' : 'Estreia gravada'}</span>}
+          {cover.state !== 'video' && <span className="rounded-full border border-white/20 bg-black/70 px-3 py-1.5">{cover.state === 'replay' ? 'Reprise · Gravado' : cover.state === 'scheduled' ? 'Estreia programada · Gravado' : 'Modo live · Gravado'}</span>}
           {cover.viewerCount !== undefined && <span className="ml-auto rounded-full border border-white/20 bg-black/70 px-3 py-1.5">Audiência indicada: {cover.viewerCount.toLocaleString('pt-AO')}</span>}
         </div>
       )}

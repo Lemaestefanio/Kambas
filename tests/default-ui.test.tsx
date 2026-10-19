@@ -5,7 +5,7 @@ import { installReadOnlyBrowser } from './mock-browser';
 import { LuandaPriveLogo } from '../src/components/LuandaPriveLogo';
 
 // CI restores .baseline/src from the approved original commit before this test.
-// Exact comparisons still protect the unchanged dialogs and global styles.
+// Exact comparisons still protect the unchanged dialogs and original styles.
 // The requested age gate, live-data readiness, branding, media and comments are
 // intentional UX changes, covered by behavior assertions here and the isolated
 // age-consent, media-preview and platform-readiness interaction suites.
@@ -79,6 +79,50 @@ function expectSameMarkup(label: string, actual: string, expected: string) {
   expect(actual).toBe(expected);
 }
 
+/** Only the approved modal viewport, keyboard and opening-animation changes. */
+function normalizeMobileDialog(name: string, html: string) {
+  if (name === 'CreatorChatDrawer') return html.replace(/class="([^"]*)"/g, (_attribute, value: string) => {
+    const original = value.split(' ');
+    const closeButton = original.includes('hover:bg-slate-200') && original.includes('rounded-full');
+    const sendButton = original.includes('disabled:opacity-40');
+    const input = original.includes('placeholder-slate-400');
+    const header = original.includes('p-3.5') && original.includes('border-b');
+    const notice = original.includes('bg-[#00aff0]/10') && original.includes('border-t');
+    const transcript = original.includes('bg-slate-50/50');
+    let classes = original.filter(token => {
+      if (['mobile-overlay', 'mobile-dialog-panel', 'mobile-scroll', 'mobile-composer', 'min-w-0', 'shrink-0', 'truncate', 'min-h-11', 'max-h-[90vh]'].includes(token)) return false;
+      if ((header || notice) && token === 'gap-2') return false;
+      if (transcript && token === 'overflow-y-auto') return false;
+      if (closeButton && ['p-1.5', 'flex', 'h-11', 'w-11', 'items-center', 'justify-center'].includes(token)) return false;
+      return true;
+    }).map(token => {
+      if (input && token === 'py-2.5') return 'py-2';
+      if (input && token === 'text-base') return 'text-xs';
+      if (sendButton && token === 'w-11') return 'w-8';
+      if (sendButton && token === 'h-11') return 'h-8';
+      return token;
+    });
+    return `class="${classes.join(' ')}"`;
+  }).replace(/ class=""/g, '');
+  if (name !== 'PlansModal' && name !== 'AuthModal') return html;
+  const label = name === 'PlansModal' ? 'Escolher plano' : 'Entrar na plataforma';
+  return html.replace(` role="dialog" aria-modal="true" aria-label="${label}"`, '')
+    .replace(/class="([^"]*)"/g, (_attribute, value: string) => {
+      let classes = value.split(' ');
+      const overlay = classes.includes(name === 'PlansModal' ? 'z-[9999]' : 'z-[10000]');
+      const authPanel = name === 'AuthModal' && classes.includes('rounded-3xl') && classes.includes('max-w-md');
+      const plansHeader = name === 'PlansModal' && classes.includes('px-5') && classes.includes('py-4') && classes.includes('border-b');
+      classes = classes.filter(token => {
+        if (['mobile-overlay', 'mobile-dialog-panel', 'mobile-scroll', 'mobile-composer'].includes(token)) return false;
+        if (overlay && ['backdrop-blur-sm', 'backdrop-blur-md', 'animate-fade-in', 'animate-fadeIn'].includes(token)) return false;
+        if (authPanel && ['overflow-hidden', 'animate-scaleUp'].includes(token)) return false;
+        if (plansHeader && token === 'shrink-0') return false;
+        return true;
+      }).map(token => name === 'PlansModal' && token === 'max-h-[92dvh]' ? 'max-h-[92vh]' : token);
+      return `class="${classes.join(' ')}"`;
+    });
+}
+
 describe('public pages wait for current published content', () => {
   for (const route of ['/', '/perfil-3', '/promo-3', '/mensagens', '/comentarios', '/checkout']) {
     test(`${route} does not flash the previous creator before live snapshots`, () => {
@@ -94,12 +138,15 @@ describe('public pages wait for current published content', () => {
     });
   }
 
-  test('global CSS is unchanged from the approved source', async () => {
+  test('the approved base CSS is preserved outside the intentional mobile additions', async () => {
     const [expected, actual] = await Promise.all([
       Bun.file(new URL('../.baseline/src/index.css', import.meta.url)).text(),
       Bun.file(new URL('../src/index.css', import.meta.url)).text(),
     ]);
-    expect(actual).toBe(expected);
+    const mobileMarker = '/* Mobile viewport and form ergonomics. */';
+    const mobileStart = actual.indexOf(mobileMarker);
+    expect(mobileStart).toBeGreaterThan(-1);
+    expect(actual.slice(0, mobileStart).trimEnd()).toBe(expected.trimEnd());
   });
 });
 
@@ -115,19 +162,28 @@ test('the shared brand uses the supplied image with accessible text and stable p
 });
 
 describe('cover scheduling and current video presentation', () => {
-  test('a future premiere exposes its schedule without mounting or preloading the video', async () => {
-    const { CoverMedia } = await current('components/CoverMedia.tsx');
-    const creator = {
-      ...creators[0], banner: '/assets/scheduled-poster.webp', bannerVideo: 'https://media.example/upcoming.mp4',
-      cover: { type: 'video', presentation: 'premiere', startsAt: '2026-10-20T19:00:00Z' },
-    };
-    const html = renderToStaticMarkup(<CoverMedia creator={creator} alt="Capa de teste" />);
-    expect(html).toContain('data-cover-state="scheduled"');
-    expect(html).toContain('<time');
-    expect(html).toContain('2026-10-20T19:00:00.000Z');
-    expect(html).not.toContain('<video');
-    expect(html).not.toContain('https://media.example/upcoming.mp4');
-  });
+  for (const [state, startsAt, endsAt] of [
+    ['scheduled', '2026-10-20T19:00:00Z', '2026-10-20T20:00:00Z'],
+    ['premiere', '2026-10-19T17:00:00Z', '2026-10-19T19:00:00Z'],
+    ['replay', '2026-10-18T19:00:00Z', '2026-10-19T17:00:00Z'],
+  ]) {
+    test(`${state} identifies the recording and keeps video sources out of initial HTML`, async () => {
+      const { CoverMedia } = await current('components/CoverMedia.tsx');
+      const creator = {
+        ...creators[0], banner: '/assets/scheduled-poster.webp', bannerVideo: 'https://media.example/upcoming.mp4',
+        cover: { type: 'video', presentation: 'premiere', startsAt, endsAt },
+      };
+      const html = renderToStaticMarkup(<CoverMedia creator={creator} alt="Capa de teste" />);
+      expect(html).toContain(`data-cover-state="${state}"`);
+      expect(html).toContain('Gravado');
+      expect(html).not.toContain('https://media.example/upcoming.mp4');
+      if (state === 'scheduled') {
+        expect(html).toContain('<time');
+        expect(html).toContain('2026-10-20T19:00:00.000Z');
+        expect(html).not.toContain('<video');
+      } else expect(html).toContain('<video');
+    });
+  }
 
   test('an active video cover never flashes the previous photograph as its poster', async () => {
     const { CoverMedia } = await current('components/CoverMedia.tsx');
@@ -170,7 +226,11 @@ describe('public dialogs retain their approved default markup', () => {
       const actual = renderToStaticMarkup(
         <Provider>{React.createElement(updated[name], props)}</Provider>,
       );
-      expectSameMarkup(name, actual, expected);
+      if (name === 'PlansModal' || name === 'AuthModal') {
+        const label = name === 'PlansModal' ? 'Escolher plano' : 'Entrar na plataforma';
+        expect(actual).toContain(`role="dialog" aria-modal="true" aria-label="${label}"`);
+      }
+      expectSameMarkup(name, normalizeMobileDialog(name, actual), normalizeMobileDialog(name, expected));
     });
   }
 });

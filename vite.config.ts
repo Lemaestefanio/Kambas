@@ -6,6 +6,8 @@ import {defineConfig} from 'vite';
 export default defineConfig(() => {
   return {
     plugins: [react(), tailwindcss()],
+    // Only fingerprinted bundles live here; editable public media keep their own cache policy.
+    build: { assetsDir: 'build' },
     resolve: {
       alias: {
         '@': path.resolve(__dirname, '.'),
@@ -20,3 +22,4 @@ export default defineConfig(() => {
     },
   };
 });
+

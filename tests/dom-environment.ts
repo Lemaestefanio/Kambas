@@ -12,6 +12,8 @@ export function installTestDOM() {
     Element: window.Element,
     SVGElement: window.SVGElement,
     HTMLMediaElement: window.HTMLMediaElement,
+    HTMLInputElement: window.HTMLInputElement,
+    HTMLTextAreaElement: window.HTMLTextAreaElement,
     Node: window.Node,
     Event: window.Event,
     MouseEvent: window.MouseEvent,

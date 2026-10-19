@@ -72,7 +72,6 @@ const creatorFixture = (): Creator => ({
 beforeAll(async () => {
   ({ createRoot } = await import('react-dom/client'));
   PlatformApp = (await import('../src/PlatformApp')).default;
-  ({ PlansModal } = await import('../src/components/PlansModal'));
   const { DEFAULT_SITE_SETTINGS, resolveCopy } = await import('../src/cms/defaults');
   defaultSignInLabel = resolveCopy(DEFAULT_SITE_SETTINGS, 'home.header.signIn');
 });
@@ -129,6 +128,16 @@ function expectAccountRequired() {
 }
 
 describe('explicit guest and account checkout versions', () => {
+  test('the first guest checkout click opens plans without waiting for another module', async () => {
+    await renderPlatform();
+    const button = container.querySelector<HTMLButtonElement>('#plans-section button');
+    expect(button).not.toBeNull();
+    // Deliberately synchronous: a Suspense fallback must not replace this CTA.
+    act(() => { button!.click(); });
+    expectPlans();
+    expect(container.querySelector('[aria-label="A preparar janela"]')).toBeNull();
+    expect(navigate).not.toHaveBeenCalled();
+  });
   for (const route of ['/', '/?version=a', '/checkout', '/perfil-3', '/promo-3', '/perfil-3?version=b', '/promo-3?version=b']) {
     test(`${route} offers plans without requiring an account`, async () => {
       await renderPlatform(route);
@@ -242,6 +251,7 @@ describe('plan selection stays inside the controlled checkout flow', () => {
     expect(navigate.mock.calls).toEqual([['https://checkout.example/valid-plan']]);
   });
   test('the plan modal delegates to its caller without navigating on its own', async () => {
+    ({ PlansModal } = await import('../src/components/PlansModal'));
     const creator = creatorFixture();
     creator.plans[0].checkoutUrl = 'https://checkout.example/plan';
     const selected = mock((_plan: Creator['plans'][number]) => {});

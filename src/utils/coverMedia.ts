@@ -27,9 +27,22 @@ function position(value: unknown): number {
 
 /** Dates without an explicit timezone are not safe scheduling inputs. */
 export function coverTimestamp(value?: string): number | undefined {
-  if (!value || !/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}(?::\d{2}(?:\.\d+)?)?(?:Z|[+-]\d{2}:\d{2})$/i.test(value)) return undefined;
+  if (!value || value.length > 40 || !/^\d{4}-(0[1-9]|1[0-2])-(0[1-9]|[12]\d|3[01])T([01]\d|2[0-3]):[0-5]\d:[0-5]\d(?:\.\d{1,9})?(?:Z|[+-]([01]\d|2[0-3]):[0-5]\d)$/.test(value)) return undefined;
   const timestamp = Date.parse(value);
   return Number.isFinite(timestamp) ? timestamp : undefined;
+}
+
+/** A recorded premiere starts immediately unless the administrator already set a schedule. */
+export function withCoverPresentation(
+  cover: NonNullable<Creator['cover']>,
+  presentation: NonNullable<Creator['cover']>['presentation'],
+  now = Date.now(),
+): NonNullable<Creator['cover']> {
+  return {
+    ...cover,
+    presentation,
+    ...(presentation === 'premiere' && !cover.startsAt ? { startsAt: new Date(now).toISOString() } : {}),
+  };
 }
 
 export function resolveCoverMedia(

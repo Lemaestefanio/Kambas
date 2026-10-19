@@ -2,6 +2,7 @@ import React, { lazy, Suspense, useState } from 'react';
 import { AgeVerificationModal } from './components/AgeVerificationModal';
 import { hasAgeConsent } from './utils/ageConsent';
 import { PlatformSkeleton } from './components/PlatformSkeleton';
+import { useMobileViewport } from './hooks/useMobileViewport';
 
 export type PageMode = 'login-first' | 'direct-pay' | 'teaser-promo';
 export type ActiveView = 'feed' | 'messages' | 'comments' | 'checkout';
@@ -10,6 +11,7 @@ export type ActiveView = 'feed' | 'messages' | 'comments' | 'checkout';
 const PlatformApp = lazy(() => import('./PlatformApp'));
 
 export default function App() {
+  useMobileViewport();
   const [ageVerified, setAgeVerified] = useState(hasAgeConsent);
 
   if (!ageVerified) {

@@ -4,6 +4,7 @@ import type { Root } from 'react-dom/client';
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, mock, test } from 'bun:test';
 import { installTestDOM } from './dom-environment';
 import { isMediaPublic, isPreviewAudioAllowed, mediaPreviewSource, previewBlurAmount } from '../src/utils/mediaPreview';
+import { createMediaPlaybackCoordinator } from '../src/utils/mediaPlayback';
 
 const dom = installTestDOM();
 const resolveMedia = mock(async (source: string) => source.startsWith('idb://')
@@ -37,15 +38,18 @@ const play = mock(function (this: HTMLMediaElement) {
   return Promise.resolve();
 });
 const pause = mock(function (this: HTMLMediaElement) { this.dispatchEvent(new Event('pause')); });
+const releaseMedia = mock(function (this: HTMLMediaElement) {});
 Object.defineProperty(dom.window.HTMLMediaElement.prototype, 'play', { configurable: true, value: play });
 Object.defineProperty(dom.window.HTMLMediaElement.prototype, 'pause', { configurable: true, value: pause });
+Object.defineProperty(dom.window.HTMLMediaElement.prototype, 'load', { configurable: true, value: releaseMedia });
 
 beforeAll(async () => {
   ({ createRoot } = await import('react-dom/client'));
   ({ MediaPreview } = await import('../src/components/MediaPreview'));
 });
 beforeEach(() => {
-  resolveMedia.mockClear(); play.mockClear(); pause.mockClear();
+  resolveMedia.mockClear(); play.mockClear(); pause.mockClear(); releaseMedia.mockClear();
+  Reflect.deleteProperty(navigator, 'connection');
   ObservedViewport.instances = [];
   Object.defineProperty(document, 'hidden', { configurable: true, value: false });
   container = document.createElement('div');
@@ -128,7 +132,7 @@ describe('preview network and playback boundaries', () => {
     expect(container.querySelector('img')!.getAttribute('src')).toBe(posterUrl);
     expect(container.querySelector('video')!.getAttribute('src')).toBeNull();
     expect(play).not.toHaveBeenCalled();
-    await click('Reproduzir prévia');
+    await click('Reproduzir vídeo');
     expect(container.querySelector('video')!.getAttribute('src')).toBe(mediaUrl);
     expect(play).toHaveBeenCalledTimes(1);
   });
@@ -136,13 +140,13 @@ describe('preview network and playback boundaries', () => {
   test('blurred preview uses its configured clip and keeps sound unavailable by default', async () => {
     await renderPreview({ visibility: 'blurred', previewUrl });
     await enterViewport();
-    await click('Reproduzir prévia');
+    await click('Reproduzir vídeo');
     const video = container.querySelector('video')!;
     expect(video.getAttribute('src')).toBe(previewUrl);
     expect(video.style.filter).toContain('blur(4px)');
     expect(video.muted).toBe(true);
-    expect(container.querySelector('[aria-label="Ativar som da prévia"]')).toBeNull();
-    expect(container.textContent).toContain('Prévia sem som');
+    expect(container.querySelector('[aria-label="Ativar som"]')).toBeNull();
+    expect(container.textContent).toContain('Sem som');
     expect(resolveMedia.mock.calls.map(([source]) => source)).not.toContain(mediaUrl);
   });
 
@@ -151,7 +155,7 @@ describe('preview network and playback boundaries', () => {
     const video = container.querySelector('video')!;
     expect(video.style.filter).toBe('');
     expect(video.muted).toBe(true);
-    await click('Ativar som da prévia');
+    await click('Ativar som');
     expect(video.muted).toBe(false);
     expect(resolveMedia).not.toHaveBeenCalled();
     expect(play).not.toHaveBeenCalled();
@@ -159,29 +163,29 @@ describe('preview network and playback boundaries', () => {
 
   test('an explicit public audio override removes the sound button', async () => {
     await renderPreview({ visibility: 'public', previewAudio: false });
-    expect(container.querySelector('[aria-label="Ativar som da prévia"]')).toBeNull();
+    expect(container.querySelector('[aria-label="Ativar som"]')).toBeNull();
     expect(container.querySelector('video')!.muted).toBe(true);
   });
 
   test('playback pauses after leaving the viewport and when the document is hidden', async () => {
     await renderPreview({ visibility: 'public' });
     await enterViewport();
-    await click('Reproduzir prévia');
+    await click('Reproduzir vídeo');
     const visibleObserver = ObservedViewport.instances.find(observer => !observer.options.rootMargin)!;
     const beforeExit = pause.mock.calls.length;
     await act(async () => { visibleObserver.emit(false); });
     expect(pause.mock.calls.length).toBeGreaterThan(beforeExit);
-    expect(container.querySelector('[aria-label="Reproduzir prévia"]')).not.toBeNull();
+    expect(container.querySelector('[aria-label="Reproduzir vídeo"]')).not.toBeNull();
     await act(async () => { visibleObserver.emit(true); });
     expect(play).toHaveBeenCalledTimes(1);
-    await click('Reproduzir prévia');
+    await click('Reproduzir vídeo');
     const beforeHide = pause.mock.calls.length;
     await act(async () => {
       Object.defineProperty(document, 'hidden', { configurable: true, value: true });
       document.dispatchEvent(new Event('visibilitychange'));
     });
     expect(pause.mock.calls.length).toBeGreaterThan(beforeHide);
-    expect(container.querySelector('[aria-label="Reproduzir prévia"]')).not.toBeNull();
+    expect(container.querySelector('[aria-label="Reproduzir vídeo"]')).not.toBeNull();
   });
 
   test('images also wait for proximity to the viewport before resolving their source', async () => {
@@ -201,7 +205,7 @@ describe('preview network and playback boundaries', () => {
     await enterViewport();
     expect(resolveMedia).not.toHaveBeenCalled();
     expect(container.querySelector('video')!.getAttribute('src')).toBeNull();
-    await click('Reproduzir prévia');
+    await click('Reproduzir vídeo');
     expect(resolveMedia.mock.calls.map(([source]) => source)).toEqual(['idb://local-video']);
     expect(container.querySelector('video')!.getAttribute('src')).toBe('blob:https://preview.example/local-video');
     expect(play).toHaveBeenCalledTimes(1);
@@ -232,7 +236,7 @@ describe('silent previews in the visible viewport', () => {
     await enterViewport();
     const video = container.querySelector('video')!;
     const visible = ObservedViewport.instances.find(observer => !observer.options.rootMargin)!;
-    await click('Ativar som da prévia');
+    await click('Ativar som');
     expect(video.muted).toBe(false);
     await act(async () => { visible.emit(false); });
     expect(video.getAttribute('src')).toBeNull();
@@ -260,7 +264,7 @@ describe('silent previews in the visible viewport', () => {
     await enterViewport();
     await click('Pausar vídeo');
     await enterViewport();
-    expect(container.querySelector('[aria-label="Reproduzir prévia"]')).not.toBeNull();
+    expect(container.querySelector('[aria-label="Reproduzir vídeo"]')).not.toBeNull();
     expect(play).toHaveBeenCalledTimes(1);
   });
 
@@ -268,9 +272,9 @@ describe('silent previews in the visible viewport', () => {
     play.mockImplementationOnce(() => Promise.reject(new Error('Autoplay blocked')));
     await renderPreview({ visibility: 'public' }, 'video', 'default');
     await enterViewport();
-    expect(container.querySelector('[aria-label="Reproduzir prévia"]')).not.toBeNull();
+    expect(container.querySelector('[aria-label="Reproduzir vídeo"]')).not.toBeNull();
     expect(container.textContent).not.toContain('Vídeo indisponível');
-    await click('Reproduzir prévia');
+    await click('Reproduzir vídeo');
     expect(play).toHaveBeenCalledTimes(2);
   });
 
@@ -295,8 +299,152 @@ describe('silent previews in the visible viewport', () => {
     await act(async () => { visible.emit(false); });
     await act(async () => { video.dispatchEvent(new Event('play')); video.dispatchEvent(new Event('playing')); });
     expect(video.getAttribute('src')).toBeNull();
-    expect(container.querySelector('[aria-label="Reproduzir prévia"]')).not.toBeNull();
+    expect(container.querySelector('[aria-label="Reproduzir vídeo"]')).not.toBeNull();
     expect(playbackChanged.mock.calls.at(-1)).toEqual([false]);
     expect(play).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe('mobile bandwidth and playback coordination', () => {
+  function connection(saveData = false, effectiveType = '4g') {
+    const state = Object.assign(new dom.window.EventTarget(), { saveData, effectiveType });
+    Object.defineProperty(navigator, 'connection', { configurable: true, value: state });
+    return state;
+  }
+
+  async function renderTwoVideos() {
+    root = createRoot(container);
+    await act(async () => {
+      root!.render(<><MediaPreview kind="video" src={mediaUrl} alt="Primeiro vídeo" defaultPublic />
+        <MediaPreview kind="video" src={previewUrl} alt="Segundo vídeo" defaultPublic /></>);
+    });
+  }
+
+  async function clickVideo(index: number, label: string) {
+    const box = container.querySelectorAll('[data-media-visibility]')[index];
+    const button = box.querySelector<HTMLButtonElement>(`button[aria-label="${label}"]`);
+    expect(button).not.toBeNull();
+    await act(async () => { button!.click(); });
+  }
+
+  for (const state of [{ saveData: true, effectiveType: '4g' }, { saveData: false, effectiveType: '2g' }, { saveData: false, effectiveType: 'slow-2g' }]) {
+    test(`data saving ${state.saveData}/${state.effectiveType} waits for an explicit play`, async () => {
+      connection(state.saveData, state.effectiveType);
+      await renderPreview({ visibility: 'public' }, 'video', 'default');
+      await enterViewport();
+      const video = container.querySelector('video')!;
+      expect(video.getAttribute('src')).toBeNull();
+      expect(video.getAttribute('poster')).toBe(posterUrl);
+      expect(play).not.toHaveBeenCalled();
+      await click('Reproduzir vídeo');
+      expect(video.getAttribute('src')).toBe(mediaUrl);
+      expect(play).toHaveBeenCalledTimes(1);
+    });
+  }
+
+  test('a connection downgrade stops automatic downloads, but preserves deliberate playback', async () => {
+    const network = connection();
+    await renderPreview({ visibility: 'public' }, 'video', 'default');
+    await enterViewport();
+    const video = container.querySelector('video')!;
+    await act(async () => { network.saveData = true; network.dispatchEvent(new Event('change')); });
+    expect(video.getAttribute('src')).toBeNull();
+    await click('Reproduzir vídeo');
+    expect(video.getAttribute('src')).toBe(mediaUrl);
+    await act(async () => { network.saveData = false; network.dispatchEvent(new Event('change')); });
+    await act(async () => { network.effectiveType = '2g'; network.dispatchEvent(new Event('change')); });
+    expect(video.getAttribute('src')).toBe(mediaUrl);
+    expect(container.querySelector('[aria-label="Pausar vídeo"]')).not.toBeNull();
+    expect(play).toHaveBeenCalledTimes(2);
+  });
+
+  test('an initially hidden document cannot request a video even when its rectangle is visible', async () => {
+    Object.defineProperty(document, 'hidden', { configurable: true, value: true });
+    await renderPreview({ visibility: 'public' }, 'video', 'default');
+    await enterViewport();
+    expect(container.querySelector('video')!.getAttribute('src')).toBeNull();
+    expect(play).not.toHaveBeenCalled();
+  });
+
+  test('only one visible clip receives a source; a manual play takes priority', async () => {
+    await renderTwoVideos();
+    await enterViewport();
+    const videos = container.querySelectorAll('video');
+    expect(videos[0].getAttribute('src')).toBe(mediaUrl);
+    expect(videos[1].getAttribute('src')).toBeNull();
+    expect(container.querySelectorAll('video[src]').length).toBe(1);
+    await clickVideo(1, 'Reproduzir vídeo');
+    expect(videos[0].getAttribute('src')).toBeNull();
+    expect(videos[1].getAttribute('src')).toBe(previewUrl);
+    expect(releaseMedia).toHaveBeenCalled();
+    expect(container.querySelectorAll('video[src]').length).toBe(1);
+    await clickVideo(1, 'Pausar vídeo');
+    expect(videos[0].getAttribute('src')).toBe(mediaUrl);
+    expect(videos[0].muted).toBe(true);
+    expect(videos[1].getAttribute('src')).toBeNull();
+  });
+
+  test('a rejected automatic play releases the slot for another visible clip', async () => {
+    play.mockImplementationOnce(() => Promise.reject(new Error('Autoplay blocked')));
+    await renderTwoVideos();
+    await enterViewport();
+    const videos = container.querySelectorAll('video');
+    expect(videos[0].getAttribute('src')).toBeNull();
+    expect(videos[1].getAttribute('src')).toBe(previewUrl);
+    expect(play).toHaveBeenCalledTimes(2);
+  });
+
+  test('unmount cancels the old video even after React detaches its ref', async () => {
+    await renderPreview({ visibility: 'public' }, 'video', 'default');
+    await enterViewport();
+    const video = container.querySelector('video')!;
+    const pausesBefore = pause.mock.calls.length;
+    const releasesBefore = releaseMedia.mock.calls.length;
+    await act(async () => { root!.unmount(); });
+    root = undefined;
+    expect(video.getAttribute('src')).toBeNull();
+    expect(pause.mock.calls.length).toBeGreaterThan(pausesBefore);
+    expect(releaseMedia.mock.calls.length).toBeGreaterThan(releasesBefore);
+  });
+
+  test('a stale play rejection cannot cancel a clip after its slot is restored', async () => {
+    let rejectFirst!: (reason: Error) => void;
+    play.mockImplementationOnce(() => new Promise<void>((_resolve, reject) => { rejectFirst = reject; }));
+    await renderTwoVideos();
+    await enterViewport();
+    await clickVideo(1, 'Reproduzir vídeo');
+    await clickVideo(1, 'Pausar vídeo');
+    await act(async () => { rejectFirst(new Error('Old play aborted')); });
+    const firstBox = container.querySelector('[data-media-visibility]')!;
+    expect(firstBox.querySelector('video')!.getAttribute('src')).toBe(mediaUrl);
+    expect(firstBox.querySelector('[aria-label="Pausar vídeo"]')).not.toBeNull();
+    expect(play).toHaveBeenCalledTimes(3);
+  });
+
+  test('lease generations change and old resources stop before a new grant is published', () => {
+    const coordinator = createMediaPlaybackCoordinator();
+    const first = Symbol('first');
+    const second = Symbol('second');
+    const events: string[] = [];
+    const unsubscribe = coordinator.subscribe(() => events.push('notify'));
+    const releaseFirst = coordinator.request(first, false, () => {
+      expect(coordinator.lease(first)).toBe(0);
+      events.push('stop first');
+    });
+    const originalLease = coordinator.lease(first);
+    events.length = 0;
+    const releaseSecond = coordinator.request(second, true, () => events.push('stop second'));
+    expect(events).toEqual(['stop first', 'notify']);
+    releaseSecond();
+    expect(coordinator.lease(first)).toBeGreaterThan(originalLease);
+    releaseFirst(); unsubscribe();
+  });
+
+  test('video controls use direct playback language without preview or loading labels', async () => {
+    await renderPreview({ visibility: 'blurred' });
+    expect(container.textContent).toContain('Reproduzir');
+    expect(container.textContent).toContain('Sem som');
+    expect(container.textContent?.toLowerCase()).not.toContain('prévia');
+    expect(container.textContent?.toLowerCase()).not.toContain('carregar');
   });
 });

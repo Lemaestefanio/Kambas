@@ -5,6 +5,7 @@ import { ProfileSection } from './components/ProfileSection';
 import { TeaserSection, type ContentTab } from './components/TeaserSection';
 import { FeedSection } from './components/FeedSection';
 import { PlansSection } from './components/PlansSection';
+import { PlansModal } from './components/PlansModal';
 import { OtherCreatorsGrid } from './components/OtherCreatorsGrid';
 import { MicroCommitmentQuiz } from './components/MicroCommitmentQuiz';
 import { DiscreetBillingNotice } from './components/DiscreetBillingNotice';
@@ -31,7 +32,6 @@ import { PlatformSkeleton } from './components/PlatformSkeleton';
 
 const PhotoGalleryGrid = lazy(() => import('./components/PhotoGalleryGrid').then(module => ({ default: module.PhotoGalleryGrid })));
 const VoiceNotesList = lazy(() => import('./components/VoiceNotesList').then(module => ({ default: module.VoiceNotesList })));
-const PlansModal = lazy(() => import('./components/PlansModal').then(module => ({ default: module.PlansModal })));
 const PaymentModal = lazy(() => import('./components/PaymentModal').then(module => ({ default: module.PaymentModal })));
 const StoryViewerModal = lazy(() => import('./components/StoryViewerModal').then(module => ({ default: module.StoryViewerModal })));
 const CreatorChatDrawer = lazy(() => import('./components/CreatorChatDrawer').then(module => ({ default: module.CreatorChatDrawer })));
@@ -653,14 +653,12 @@ export function PlatformContent() {
 
       {/* Modal Oficial de Escolha de Planos */}
       {isPlansModalOpen && (
-        <Suspense fallback={<DialogLoading />}>
           <PlansModal
             creator={currentCreator}
             isOpen={isPlansModalOpen}
             onClose={() => setIsPlansModalOpen(false)}
             onSelectPlan={handleSelectPlan}
           />
-        </Suspense>
       )}
 
       {/* Modal de Pagamento Multicaixa Express / Iban */}
