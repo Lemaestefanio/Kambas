@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { CheckCircle2, Star, MessageCircle, Share2, MapPin, Sparkles, Camera } from 'lucide-react';
+import { CheckCircle2, Star, MessageCircle, Share2, MapPin, Sparkles } from 'lucide-react';
 import { Creator } from '../types';
 import { StoryHighlightsBar } from './StoryHighlightsBar';
 
@@ -9,7 +9,6 @@ interface ProfileSectionProps {
   onOpenChat: () => void;
   onSelectTab: (tab: 'posts' | 'photos' | 'videos' | 'audio') => void;
   onShare?: () => void;
-  onEditPhoto?: () => void;
 }
 
 export const ProfileSection: React.FC<ProfileSectionProps> = ({
@@ -18,7 +17,6 @@ export const ProfileSection: React.FC<ProfileSectionProps> = ({
   onOpenChat,
   onSelectTab,
   onShare,
-  onEditPhoto,
 }) => {
   const [isExpanded, setIsExpanded] = useState(false);
   const [isFavorite, setIsFavorite] = useState(false);
@@ -75,17 +73,6 @@ export const ProfileSection: React.FC<ProfileSectionProps> = ({
                 className="absolute bottom-1 right-1 w-4 h-4 rounded-full bg-emerald-500 border-[2.5px] border-white shadow-xs"
                 title="Online agora"
               />
-            )}
-            {/* Photo Edit Trigger Button */}
-            {onEditPhoto && (
-              <button
-                onClick={onEditPhoto}
-                className="absolute -top-1 -right-1 w-7 h-7 rounded-full bg-slate-900/90 hover:bg-[#00aff0] text-white flex items-center justify-center shadow-md border-2 border-white transition-all hover:scale-110 active:scale-95"
-                title="Trocar fotografia desta modelo"
-                aria-label="Trocar fotografia desta modelo"
-              >
-                <Camera className="w-3.5 h-3.5" />
-              </button>
             )}
           </div>
 

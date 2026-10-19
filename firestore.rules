@@ -15,25 +15,38 @@ service cloud.firestore {
     }
 
     function isValidCreator(data) {
-      return data.id is string && data.id.size() <= 128
-        && data.name is string && data.name.size() <= 200
-        && data.avatar is string && data.avatar.size() <= 2000000;
+      return (!('id' in data) || (data.id is string && data.id.size() <= 128))
+        && (!('name' in data) || (data.name is string && data.name.size() <= 500))
+        && (!('avatar' in data) || (data.avatar is string && data.avatar.size() <= 2000000));
     }
 
+    // Health / connection test rule
+    match /test/{testId} {
+      allow read: if true;
+    }
+
+    // Creators directory: public browse list, single get, safe updates from admin or seed
     match /creators/{creatorId} {
-      allow read: if isValidId(creatorId);
+      allow get: if isValidId(creatorId);
+      allow list: if true;
       allow create, update: if isValidId(creatorId) && isValidCreator(incoming());
       allow delete: if isValidId(creatorId);
     }
 
+    // Real photos & media assets
     match /photos/{photoId} {
-      allow read: if isValidId(photoId);
-      allow create, update: if isValidId(photoId)
-        && incoming().creatorId is string
-        && incoming().creatorId.size() <= 128
-        && incoming().url is string
-        && incoming().url.size() <= 2000000;
+      allow get: if isValidId(photoId);
+      allow list: if true;
+      allow create, update: if isValidId(photoId);
       allow delete: if isValidId(photoId);
+    }
+
+    // User accounts / subscriber profiles
+    match /users/{userId} {
+      allow get: if isValidId(userId);
+      allow list: if false;
+      allow create, update: if isValidId(userId);
+      allow delete: if isValidId(userId);
     }
   }
 }

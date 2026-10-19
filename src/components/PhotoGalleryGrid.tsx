@@ -44,6 +44,8 @@ export const PhotoGalleryGrid: React.FC<PhotoGalleryGridProps> = ({
             <img
               src={photo.url}
               alt={photo.caption}
+              loading="lazy"
+              decoding="async"
               className={`w-full h-full object-cover transition-transform duration-300 group-hover:scale-105 ${
                 photo.unlocked ? '' : 'filter blur-md brightness-75'
               }`}

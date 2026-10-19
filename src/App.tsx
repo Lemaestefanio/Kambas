@@ -23,15 +23,22 @@ import { CreatorChatDrawer } from './components/CreatorChatDrawer';
 import { CreatorsDirectoryModal } from './components/CreatorsDirectoryModal';
 import { PostCommentsModal } from './components/PostCommentsModal';
 import { TipModal } from './components/TipModal';
-import { AgencyPhotoManagerModal } from './components/AgencyPhotoManagerModal';
-import { Plan, Creator } from './types';
+import { AuthModal } from './components/AuthModal';
+import { AdminPanelModal } from './components/AdminPanelModal';
+import { DedicatedMessagesPage } from './components/DedicatedMessagesPage';
+import { Clock, Zap, ArrowRight, ShieldCheck } from 'lucide-react';
+import { Plan, Creator, AppUser } from './types';
 import { CREATORS } from './data/content';
 import {
   subscribeToCreators,
   seedInitialCreatorsIfEmpty,
-  updateCreatorAvatarInFirestore,
-  batchUpdateAvatarsInFirestore,
+  onAuthChange,
+  signOutUser,
 } from './firebase';
+import { User as FirebaseUser } from 'firebase/auth';
+
+export type PageMode = 'login-first' | 'direct-pay' | 'teaser-promo';
+export type ActiveView = 'feed' | 'messages';
 
 const getInitialCreators = (): Creator[] => {
   try {
@@ -57,7 +64,52 @@ const getInitialCreators = (): Creator[] => {
   return CREATORS;
 };
 
+// URL-based routing to support separate dedicated links
+const parseUrlRoute = (): {
+  mode: PageMode;
+  view: ActiveView;
+  isAdmin: boolean;
+} => {
+  const pathname = window.location.pathname.toLowerCase();
+  const search = window.location.search.toLowerCase();
+  const params = new URLSearchParams(window.location.search);
+
+  const isAdmin =
+    pathname.includes('/admin') ||
+    pathname.includes('/admin-luanda-prive') ||
+    pathname.includes('/admin-loanda-prive') ||
+    params.get('admin') === 'true';
+
+  const isMessages =
+    pathname.includes('/mensagens') ||
+    pathname.includes('/chat') ||
+    params.get('view') === 'messages';
+
+  let mode: PageMode = 'login-first';
+  if (
+    pathname.includes('/perfil-3') ||
+    params.get('mode') === 'direct-pay' ||
+    params.get('variant') === '2'
+  ) {
+    mode = 'direct-pay';
+  } else if (
+    pathname.includes('/promo-3') ||
+    params.get('mode') === 'teaser-promo' ||
+    params.get('variant') === '3'
+  ) {
+    mode = 'teaser-promo';
+  }
+
+  return {
+    mode,
+    view: isMessages ? 'messages' : 'feed',
+    isAdmin,
+  };
+};
+
 export default function App() {
+  const initialRoute = parseUrlRoute();
+
   const [creatorsList, setCreatorsList] = useState<Creator[]>(getInitialCreators);
   const [activeCreatorId, setActiveCreatorId] = useState<string>(CREATORS[0].id);
   const [activeTab, setActiveTab] = useState<ContentTab>('posts');
@@ -65,11 +117,25 @@ export default function App() {
   const [isPlansModalOpen, setIsPlansModalOpen] = useState(false);
   const [isPaymentOpen, setIsPaymentOpen] = useState(false);
   const [ageVerified, setAgeVerified] = useState(false);
-  const [isCloudSyncing, setIsCloudSyncing] = useState(false);
 
-  // Agency Photo Manager Modal state
-  const [isPhotoManagerOpen, setIsPhotoManagerOpen] = useState(false);
-  const [photoManagerTargetId, setPhotoManagerTargetId] = useState<string | undefined>(undefined);
+  // Dedicated Route and View state
+  const [pageMode] = useState<PageMode>(initialRoute.mode);
+  const [activeView, setActiveView] = useState<ActiveView>(initialRoute.view);
+
+  // Secret Admin Panel state (isolated, not visible to regular users)
+  const [isAdminOpen, setIsAdminOpen] = useState(initialRoute.isAdmin);
+
+  // User Authentication state (restored from browser session for privacy)
+  const [authUser, setAuthUser] = useState<AppUser | FirebaseUser | null>(() => {
+    try {
+      const saved = sessionStorage.getItem('luanda_prive_user');
+      if (saved) return JSON.parse(saved);
+    } catch (e) {
+      console.error(e);
+    }
+    return null;
+  });
+  const [isAuthOpen, setIsAuthOpen] = useState(false);
 
   // Modals for deep navigation & realism
   const [isStoryOpen, setIsStoryOpen] = useState(false);
@@ -80,34 +146,64 @@ export default function App() {
   const [activePostCaption, setActivePostCaption] = useState('');
   const [isTipOpen, setIsTipOpen] = useState(false);
 
+  // 15-minute countdown for Variant 3 (Promo-3)
+  const [promoTimeLeft, setPromoTimeLeft] = useState(14 * 60 + 58);
+
+  useEffect(() => {
+    if (pageMode === 'teaser-promo') {
+      const timer = setInterval(() => {
+        setPromoTimeLeft((prev) => (prev > 0 ? prev - 1 : 14 * 60 + 59));
+      }, 1000);
+      return () => clearInterval(timer);
+    }
+  }, [pageMode]);
+
+  const formatPromoTime = (sec: number) => {
+    const m = Math.floor(sec / 60);
+    const s = sec % 60;
+    return `${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
+  };
+
+  // Subscribe to Firebase Auth changes
+  useEffect(() => {
+    const unsubAuth = onAuthChange((user) => {
+      setAuthUser(user);
+    });
+    return () => unsubAuth();
+  }, []);
+
   // Real-time synchronization with Firebase Firestore
   useEffect(() => {
-    // 1. Seed initial agency models into Firestore if database is fresh
     seedInitialCreatorsIfEmpty(CREATORS).catch((err) => {
       console.warn('Firebase seeding notice:', err);
     });
 
-    // 2. Real-time subscription to Firestore creators
     const unsubscribe = subscribeToCreators(
       (firestoreCreators) => {
         if (firestoreCreators && firestoreCreators.length > 0) {
-          // Merge with CREATORS defaults to ensure rich client structures are preserved
           const merged = CREATORS.map((def) => {
             const remote = firestoreCreators.find((fc) => fc.id === def.id);
             if (remote) {
               return {
                 ...def,
                 ...remote,
-                // Ensure avatar is applied to first highlight cover if matching
-                highlights: def.highlights.map((h, idx) =>
-                  idx === 0 && remote.avatar ? { ...h, coverImage: remote.avatar } : h
-                ),
+                highlights:
+                  remote.highlights && remote.highlights.length > 0
+                    ? remote.highlights
+                    : def.highlights,
+                posts:
+                  remote.posts && remote.posts.length > 0
+                    ? remote.posts
+                    : def.posts,
+                galleryPhotos:
+                  remote.galleryPhotos && remote.galleryPhotos.length > 0
+                    ? remote.galleryPhotos
+                    : def.galleryPhotos,
               };
             }
             return def;
           });
 
-          // Also include any extra custom models added to Firestore
           const extraModels = firestoreCreators.filter(
             (fc) => !CREATORS.some((def) => def.id === fc.id)
           );
@@ -126,102 +222,43 @@ export default function App() {
   const currentCreator =
     creatorsList.find((c) => c.id === activeCreatorId) || creatorsList[0];
 
-  const handleUpdateAvatar = async (creatorId: string, dataUrl: string) => {
-    // Optimistic UI update
+  const handleUpdateCreator = (updated: Creator) => {
     setCreatorsList((prev) =>
-      prev.map((c) => {
-        if (c.id === creatorId) {
-          return {
-            ...c,
-            avatar: dataUrl,
-            highlights: c.highlights.map((h, idx) =>
-              idx === 0 ? { ...h, coverImage: dataUrl } : h
-            ),
-          };
-        }
-        return c;
-      })
+      prev.map((c) => (c.id === updated.id ? updated : c))
     );
-
-    // Save offline cache
-    try {
-      const saved = JSON.parse(localStorage.getItem('agency_custom_avatars') || '{}');
-      saved[creatorId] = dataUrl;
-      localStorage.setItem('agency_custom_avatars', JSON.stringify(saved));
-    } catch (e) {
-      console.error(e);
-    }
-
-    // Persist permanently in Firestore Cloud Database
-    try {
-      setIsCloudSyncing(true);
-      await updateCreatorAvatarInFirestore(creatorId, dataUrl);
-    } catch (cloudErr) {
-      console.error('Failed to sync avatar to Firebase Firestore:', cloudErr);
-    } finally {
-      setIsCloudSyncing(false);
-    }
   };
 
-  const handleBatchUpdateAvatars = async (avatarsMap: Record<string, string>) => {
-    // Optimistic UI update
-    setCreatorsList((prev) =>
-      prev.map((c) => {
-        if (avatarsMap[c.id]) {
-          return {
-            ...c,
-            avatar: avatarsMap[c.id],
-            highlights: c.highlights.map((h, idx) =>
-              idx === 0 ? { ...h, coverImage: avatarsMap[c.id] } : h
-            ),
-          };
-        }
-        return c;
-      })
-    );
-
-    // Save offline cache
-    try {
-      const saved = JSON.parse(localStorage.getItem('agency_custom_avatars') || '{}');
-      const merged = { ...saved, ...avatarsMap };
-      localStorage.setItem('agency_custom_avatars', JSON.stringify(merged));
-    } catch (e) {
-      console.error(e);
-    }
-
-    // Batch commit to Firestore Cloud Database
-    try {
-      setIsCloudSyncing(true);
-      await batchUpdateAvatarsInFirestore(avatarsMap);
-    } catch (cloudErr) {
-      console.error('Failed to batch save avatars to Firebase:', cloudErr);
-    } finally {
-      setIsCloudSyncing(false);
-    }
-  };
-
-  const handleResetAvatars = () => {
-    localStorage.removeItem('agency_custom_avatars');
-    setCreatorsList(CREATORS);
-    // Optionally reseed original avatars to Firestore
-    const resetMap: Record<string, string> = {};
-    CREATORS.forEach((c) => {
-      resetMap[c.id] = c.avatar;
-    });
-    batchUpdateAvatarsInFirestore(resetMap).catch(console.error);
-  };
-
-  const handleOpenPhotoManager = (targetCreatorId?: string) => {
-    setPhotoManagerTargetId(targetCreatorId);
-    setIsPhotoManagerOpen(true);
-  };
-
+  /**
+   * Action: Open Plans / Unlock Content
+   * Respects the 3 distinct page links:
+   * - Página 1 (login-first /): Requires account creation first!
+   * - Página 2 (direct-pay /perfil-3): Directly opens payment without any login!
+   * - Página 3 (teaser-promo /promo-3): Opens plans with 50% discount highlight!
+   */
   const handleOpenPlans = () => {
+    if (pageMode === 'login-first' && !authUser) {
+      setIsAuthOpen(true);
+      return;
+    }
     setIsPlansModalOpen(true);
   };
 
   const handleSelectPlan = (plan: Plan) => {
-    setSelectedPlan(plan);
+    // If in Promo mode (/promo-3), apply 50% discount tag
+    let appliedPlan = plan;
+    if (pageMode === 'teaser-promo') {
+      const halfPriceRaw = Math.round(plan.rawPrice * 0.5);
+      const formattedPrice = `${halfPriceRaw.toLocaleString('pt-AO')} Kz`;
+      appliedPlan = {
+        ...plan,
+        price: formattedPrice,
+        rawPrice: halfPriceRaw,
+        badge: '50% OFF APLICADO',
+        badgeType: 'accent',
+      };
+    }
+
+    setSelectedPlan(appliedPlan);
     setIsPlansModalOpen(false);
     setIsPaymentOpen(true);
   };
@@ -246,132 +283,201 @@ export default function App() {
     setIsTipOpen(true);
   };
 
+  // Navigating to dedicated Messages page
+  const handleOpenMessagesView = () => {
+    setActiveView('messages');
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
   return (
     <div className="min-h-screen bg-[#f0f2f5] max-w-[600px] mx-auto pb-44 shadow-xl sm:border-x sm:border-slate-200 text-[#1c1e21] relative antialiased">
       {/* 18+ Age Verification Modal */}
       <AgeVerificationModal onVerified={() => setAgeVerified(true)} />
 
-      {/* Live Social Proof Conversion Toasts */}
+      {/* Página 3: Promo Banner de Alta Conversão com Contagem Decrescente (Só aparece em /promo-3) */}
+      {pageMode === 'teaser-promo' && (
+        <div className="sticky top-0 z-50 bg-gradient-to-r from-rose-950 via-slate-900 to-rose-950 text-white px-3.5 py-2.5 flex items-center justify-between border-b border-rose-800 shadow-md">
+          <div className="flex items-center gap-2">
+            <span className="flex h-2.5 w-2.5 relative">
+              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-rose-400 opacity-75"></span>
+              <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-rose-500"></span>
+            </span>
+            <div>
+              <p className="text-xs font-black text-white">
+                Luanda Privé · <span className="text-rose-400">50% DE DESCONTO VIP</span>
+              </p>
+              <p className="text-[10px] text-slate-300">
+                Oferta de boas-vindas expira em:{' '}
+                <span className="font-mono font-bold text-rose-300 bg-black/40 px-1.5 py-0.5 rounded ml-1">
+                  {formatPromoTime(promoTimeLeft)}
+                </span>
+              </p>
+            </div>
+          </div>
+
+          <button
+            onClick={handleOpenPlans}
+            className="px-3 py-1.5 rounded-full bg-gradient-to-r from-rose-600 to-rose-500 hover:from-rose-500 hover:to-rose-400 text-white font-extrabold text-xs shadow-md active:scale-95 flex items-center gap-1 cursor-pointer shrink-0"
+          >
+            <span>Aproveitar</span>
+            <ArrowRight className="w-3.5 h-3.5" />
+          </button>
+        </div>
+      )}
+
+      {/* Live Social Proof Conversion Toasts (100% Anónimas, sem apelidos nem cidades) */}
       {ageVerified && <LiveSocialProofToast />}
 
       {/* Incoming Message Notification from active creator */}
-      {ageVerified && (
+      {ageVerified && activeView !== 'messages' && (
         <IncomingMessageToast
           creator={currentCreator}
-          onUnlockClick={handleOpenPlans}
+          onUnlockClick={handleOpenMessagesView}
         />
       )}
 
-      {/* 1. Header & Top Bar: Sticky OnlyFans Navigation Bar */}
-      <OnlyFansHeader
-        currentCreator={currentCreator}
-        allCreators={creatorsList}
-        onSelectCreator={handleSelectCreator}
-        onOpenDirectory={() => setIsDirectoryOpen(true)}
-        onOpenPhotoManager={() => handleOpenPhotoManager()}
-      />
-
-      {/* 2. Perfis Organizados: Stories / Criadoras em Destaque de Luanda */}
-      <RecommendedProfilesBar
-        creators={creatorsList}
-        activeCreatorId={currentCreator.id}
-        onSelectCreator={handleSelectCreator}
-        onOpenDirectory={() => setIsDirectoryOpen(true)}
-      />
-
-      {/* 3. Perfil da Criadora: Capa limpa, Avatar, Estatísticas, Bio e Destaques */}
-      <ProfileSection
-        creator={currentCreator}
-        onOpenStory={handleOpenStory}
-        onOpenChat={() => setIsChatOpen(true)}
-        onSelectTab={(tab) => setActiveTab(tab)}
-        onEditPhoto={() => handleOpenPhotoManager(currentCreator.id)}
-      />
-
-      {/* 4. Caixa Principal de Assinatura VIP (OnlyFans Style - Sem expor preço antecipadamente) */}
-      <PlansSection
-        creator={currentCreator}
-        onOpenPlansModal={handleOpenPlans}
-      />
-
-      {/* 5. Separador Navegável de Conteúdos (Posts, Fotos, Vídeos, Voz) */}
-      <TeaserSection
-        creator={currentCreator}
-        activeTab={activeTab}
-        onTabChange={(tab) => setActiveTab(tab)}
-        onUnlockClick={handleOpenPlans}
-      />
-
-      {/* 6. Feed Dinâmico por Tipo de Conteúdo */}
-      <main>
-        {activeTab === 'posts' && (
-          <FeedSection
-            creator={currentCreator}
-            onUnlockClick={handleOpenPlans}
-            onOpenComments={handleOpenComments}
-            onOpenTip={handleOpenTip}
-          />
-        )}
-
-        {activeTab === 'photos' && (
-          <PhotoGalleryGrid
-            creator={currentCreator}
-            onUnlockClick={handleOpenPlans}
-          />
-        )}
-
-        {activeTab === 'videos' && (
-          <FeedSection
-            creator={currentCreator}
-            onUnlockClick={handleOpenPlans}
-            onOpenComments={handleOpenComments}
-            onOpenTip={handleOpenTip}
-          />
-        )}
-
-        {activeTab === 'audio' && (
-          <VoiceNotesList
-            creator={currentCreator}
-            onUnlockClick={handleOpenPlans}
-          />
-        )}
-      </main>
-
-      {/* 7. Organização de Perfis: Vitrine de Outras Criadoras em Luanda */}
-      <OtherCreatorsGrid
-        creators={creatorsList}
-        currentCreatorId={currentCreator.id}
-        onSelectCreator={handleSelectCreator}
-        onOpenDirectory={() => setIsDirectoryOpen(true)}
-      />
-
-      {/* 8. Quiz Interativo de Preferências */}
-      <div className="pt-1">
-        <MicroCommitmentQuiz
+      {/* IF USER IS IN DEDICATED MESSAGES VIEW (/mensagens ou clicou no Chat) */}
+      {activeView === 'messages' ? (
+        <DedicatedMessagesPage
           creator={currentCreator}
+          onBack={() => setActiveView('feed')}
           onUnlockClick={handleOpenPlans}
+          onOpenPlans={handleOpenPlans}
         />
-      </div>
+      ) : (
+        /* STANDARD FEED VIEW */
+        <>
+          {/* 1. Header & Top Bar: Sticky Navigation Bar */}
+          <OnlyFansHeader
+            currentCreator={currentCreator}
+            allCreators={creatorsList}
+            onSelectCreator={handleSelectCreator}
+            onOpenDirectory={() => setIsDirectoryOpen(true)}
+            user={authUser}
+            onOpenAuth={() => setIsAuthOpen(true)}
+            onSignOut={async () => {
+              sessionStorage.removeItem('luanda_prive_user');
+              await signOutUser();
+              setAuthUser(null);
+            }}
+          />
 
-      {/* 9. Garantia de Sigilo Bancário no Multicaixa Express */}
-      <DiscreetBillingNotice />
+          {/* 2. Perfis Organizados: Stories / Criadoras em Destaque de Luanda */}
+          <RecommendedProfilesBar
+            creators={creatorsList}
+            activeCreatorId={currentCreator.id}
+            onSelectCreator={handleSelectCreator}
+            onOpenDirectory={() => setIsDirectoryOpen(true)}
+          />
 
-      {/* 10. FAQ / Dúvidas Frequentes */}
-      <FAQSection />
+          {/* 3. Perfil da Criadora: Capa, Avatar, Estatísticas, Bio e Destaques */}
+          <ProfileSection
+            creator={currentCreator}
+            onOpenStory={handleOpenStory}
+            onOpenChat={handleOpenMessagesView}
+            onSelectTab={(tab) => setActiveTab(tab)}
+          />
 
-      {/* Barra Inferior Fixa para Desktops/Tablets */}
-      <div className="hidden sm:block">
-        <StickyBottomBar creator={currentCreator} onUnlockClick={handleOpenPlans} />
-      </div>
+          {/* 4. Caixa Principal de Assinatura VIP */}
+          <PlansSection
+            creator={currentCreator}
+            onOpenPlansModal={handleOpenPlans}
+          />
 
-      {/* Barra de Navegação Inferior Estilo OnlyFans Mobile */}
-      <BottomNavOnlyFans
-        onHomeClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
-        onExploreClick={() => setIsDirectoryOpen(true)}
-        onChatClick={() => setIsChatOpen(true)}
-        onNotificationsClick={() => setIsDirectoryOpen(true)}
-        onUnlockClick={handleOpenPlans}
-      />
+          {/* 5. Separador Navegável de Conteúdos (Posts, Fotos, Vídeos, Voz) */}
+          <TeaserSection
+            creator={currentCreator}
+            activeTab={activeTab}
+            onTabChange={(tab) => setActiveTab(tab)}
+            onUnlockClick={handleOpenPlans}
+          />
+
+          {/* 6. Feed Dinâmico por Tipo de Conteúdo (com desfoque ou visibilidade total configurada) */}
+          <main>
+            {activeTab === 'posts' && (
+              <FeedSection
+                creator={currentCreator}
+                onUnlockClick={handleOpenPlans}
+                onOpenComments={handleOpenComments}
+                onOpenTip={handleOpenTip}
+              />
+            )}
+
+            {activeTab === 'photos' && (
+              <PhotoGalleryGrid
+                creator={currentCreator}
+                onUnlockClick={handleOpenPlans}
+              />
+            )}
+
+            {activeTab === 'videos' && (
+              <FeedSection
+                creator={currentCreator}
+                onUnlockClick={handleOpenPlans}
+                onOpenComments={handleOpenComments}
+                onOpenTip={handleOpenTip}
+              />
+            )}
+
+            {activeTab === 'audio' && (
+              <VoiceNotesList
+                creator={currentCreator}
+                onUnlockClick={handleOpenPlans}
+              />
+            )}
+          </main>
+
+          {/* 7. Organização de Perfis: Vitrine de Outras Criadoras em Luanda */}
+          <OtherCreatorsGrid
+            creators={creatorsList}
+            currentCreatorId={currentCreator.id}
+            onSelectCreator={handleSelectCreator}
+            onOpenDirectory={() => setIsDirectoryOpen(true)}
+          />
+
+          {/* 8. Quiz Interativo de Preferências */}
+          <div className="pt-1">
+            <MicroCommitmentQuiz
+              creator={currentCreator}
+              onUnlockClick={handleOpenPlans}
+            />
+          </div>
+
+          {/* 9. Garantia de Sigilo Bancário no Multicaixa Express */}
+          <DiscreetBillingNotice />
+
+          {/* 10. FAQ / Dúvidas Frequentes */}
+          <FAQSection />
+
+          {/* Rodapé Limpo e 100% Profissional (sem botões de admin visíveis para visitantes) */}
+          <footer className="py-8 px-4 text-center border-t border-slate-200 mt-6 text-xs text-slate-400 space-y-1.5">
+            <p className="font-semibold text-slate-600">Luanda Privé · Luanda, Angola</p>
+            <p className="text-[11px] text-slate-400">
+              Acesso exclusivo para maiores de 18 anos. Pagamentos discretos e seguros via Multicaixa Express.
+            </p>
+            <p className="text-[10px] text-slate-300 pt-2">© 2026 Luanda Privé · Todos os direitos reservados</p>
+          </footer>
+
+          {/* Barra Inferior Fixa para Desktops/Tablets */}
+          <div className="hidden sm:block">
+            <StickyBottomBar creator={currentCreator} onUnlockClick={handleOpenPlans} />
+          </div>
+
+          {/* Barra de Navegação Inferior Estilo OnlyFans Mobile */}
+          <BottomNavOnlyFans
+            onHomeClick={() => {
+              setActiveView('feed');
+              window.scrollTo({ top: 0, behavior: 'smooth' });
+            }}
+            onExploreClick={() => setIsDirectoryOpen(true)}
+            onChatClick={handleOpenMessagesView}
+            onNotificationsClick={() => setIsDirectoryOpen(true)}
+            onUnlockClick={handleOpenPlans}
+            user={authUser}
+            onOpenAuth={() => setIsAuthOpen(true)}
+          />
+        </>
+      )}
 
       {/* Modal Visualizador de Stories em Ecrã Inteiro */}
       <StoryViewerModal
@@ -382,7 +488,7 @@ export default function App() {
         onUnlockClick={handleOpenPlans}
       />
 
-      {/* Gaveta de Chat Privado Interativo com a Criadora */}
+      {/* Gaveta de Chat Secundária */}
       <CreatorChatDrawer
         creator={currentCreator}
         isOpen={isChatOpen}
@@ -396,7 +502,6 @@ export default function App() {
         isOpen={isDirectoryOpen}
         onClose={() => setIsDirectoryOpen(false)}
         onSelectCreator={handleSelectCreator}
-        onOpenPhotoManager={() => handleOpenPhotoManager()}
       />
 
       {/* Modal de Comentários Reais da Publicação */}
@@ -415,7 +520,7 @@ export default function App() {
         onProceedToPayment={handleSelectPlan}
       />
 
-      {/* Modal Oficial de Escolha de Planos (Abre ao clicar em desbloquear) */}
+      {/* Modal Oficial de Escolha de Planos */}
       <PlansModal
         creator={currentCreator}
         isOpen={isPlansModalOpen}
@@ -432,16 +537,25 @@ export default function App() {
         onSuccess={() => {}}
       />
 
-      {/* Modal de Gestão de Fotos Reais da Agência */}
-      <AgencyPhotoManagerModal
-        isOpen={isPhotoManagerOpen}
-        onClose={() => setIsPhotoManagerOpen(false)}
+      {/* Modal de Autenticação / Criação de Conta do Fã */}
+      <AuthModal
+        isOpen={isAuthOpen}
+        onClose={() => setIsAuthOpen(false)}
+        onSuccess={(user) => {
+          setAuthUser(user);
+          // Se estava a tentar aceder ao plano na Página 1, abre logo o modal de planos
+          setIsPlansModalOpen(true);
+        }}
+        creatorName={currentCreator.shortName}
+      />
+
+      {/* PAINEL ADMINISTRATIVO SECRETO (Isolado e protegido por PIN) */}
+      <AdminPanelModal
+        isOpen={isAdminOpen}
+        onClose={() => setIsAdminOpen(false)}
         creators={creatorsList}
-        onUpdateAvatar={handleUpdateAvatar}
-        onBatchUpdateAvatars={handleBatchUpdateAvatars}
-        onResetAvatars={handleResetAvatars}
-        initialSelectedCreatorId={photoManagerTargetId}
-        isCloudSyncing={isCloudSyncing}
+        onUpdateCreator={handleUpdateCreator}
+        activeCreatorId={currentCreator.id}
       />
     </div>
   );

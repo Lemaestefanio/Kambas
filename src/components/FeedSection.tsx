@@ -95,12 +95,12 @@ export const FeedSection: React.FC<FeedSectionProps> = ({
               {post.video ? (
                 <video
                   src={post.video}
-                  autoPlay
+                  autoPlay={post.unlocked}
                   loop
                   muted={isMuted}
                   playsInline
                   draggable={false}
-                  preload="metadata"
+                  preload={post.unlocked ? 'metadata' : 'none'}
                   className={`w-full h-full object-cover ${post.unlocked ? '' : 'scale-110'}`}
                   style={post.unlocked ? undefined : { filter: 'blur(12px) brightness(0.72)' }}
                 />
@@ -109,6 +109,8 @@ export const FeedSection: React.FC<FeedSectionProps> = ({
                   src={post.image || creator.banner}
                   alt="Conteúdo exclusivo"
                   draggable={false}
+                  loading="lazy"
+                  decoding="async"
                   className={`w-full h-full object-cover ${post.unlocked ? '' : 'scale-110'}`}
                   style={post.unlocked ? undefined : { filter: 'blur(12px) brightness(0.72)' }}
                 />

@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { X, Search, CheckCircle2, Flame, MapPin, ArrowRight, Camera } from 'lucide-react';
+import { X, Search, CheckCircle2, Flame, MapPin, ArrowRight } from 'lucide-react';
 import { Creator } from '../types';
 
 interface CreatorsDirectoryModalProps {
@@ -7,7 +7,6 @@ interface CreatorsDirectoryModalProps {
   isOpen: boolean;
   onClose: () => void;
   onSelectCreator: (creator: Creator) => void;
-  onOpenPhotoManager?: () => void;
 }
 
 export const CreatorsDirectoryModal: React.FC<CreatorsDirectoryModalProps> = ({
@@ -15,7 +14,6 @@ export const CreatorsDirectoryModal: React.FC<CreatorsDirectoryModalProps> = ({
   isOpen,
   onClose,
   onSelectCreator,
-  onOpenPhotoManager,
 }) => {
   if (!isOpen) return null;
 
@@ -97,23 +95,11 @@ export const CreatorsDirectoryModal: React.FC<CreatorsDirectoryModalProps> = ({
             ))}
           </div>
 
-          {onOpenPhotoManager && (
-            <div className="pt-1 flex items-center justify-between">
-              <span className="text-[10px] text-slate-500 font-medium">
-                {creators.length} criadoras disponíveis
-              </span>
-              <button
-                onClick={() => {
-                  onClose();
-                  onOpenPhotoManager();
-                }}
-                className="text-[11px] text-[#00aff0] hover:text-[#009ed9] font-bold flex items-center gap-1 transition-colors"
-              >
-                <Camera className="w-3.5 h-3.5" />
-                <span>Carregar Fotos das Modelos</span>
-              </button>
-            </div>
-          )}
+          <div className="pt-1 flex items-center justify-between">
+            <span className="text-[10px] text-slate-500 font-medium">
+              {creators.length} criadoras disponíveis em Luanda
+            </span>
+          </div>
         </div>
 
         {/* Creators Cards Grid */}

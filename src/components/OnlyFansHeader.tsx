@@ -1,13 +1,16 @@
 import React, { useState } from 'react';
-import { Search, Bell, Users, CheckCircle2, X, Share2, Sparkles, MapPin, Camera } from 'lucide-react';
-import { Creator } from '../types';
+import { Search, Bell, Users, CheckCircle2, X, Share2, Sparkles, MapPin, User, LogOut, Crown } from 'lucide-react';
+import { Creator, AppUser } from '../types';
+import { User as FirebaseUser } from 'firebase/auth';
 
 interface OnlyFansHeaderProps {
   currentCreator: Creator;
   allCreators: Creator[];
   onSelectCreator: (creator: Creator) => void;
   onOpenDirectory: () => void;
-  onOpenPhotoManager?: () => void;
+  user?: AppUser | FirebaseUser | null;
+  onOpenAuth: () => void;
+  onSignOut: () => void;
 }
 
 export const OnlyFansHeader: React.FC<OnlyFansHeaderProps> = ({
@@ -15,7 +18,9 @@ export const OnlyFansHeader: React.FC<OnlyFansHeaderProps> = ({
   allCreators,
   onSelectCreator,
   onOpenDirectory,
-  onOpenPhotoManager,
+  user,
+  onOpenAuth,
+  onSignOut,
 }) => {
   const [isSearchOpen, setIsSearchOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
@@ -33,8 +38,8 @@ export const OnlyFansHeader: React.FC<OnlyFansHeaderProps> = ({
   const handleShare = () => {
     if (navigator.share) {
       navigator.share({
-        title: `${currentCreator.name} - OnlyFans Angola`,
-        text: `Acede ao perfil oficial da ${currentCreator.shortName} em Luanda!`,
+        title: `${currentCreator.name} - Luanda Privé`,
+        text: `Acede ao perfil oficial de ${currentCreator.shortName} na Luanda Privé!`,
         url: window.location.href,
       }).catch(() => {
         // Fallback
@@ -48,17 +53,74 @@ export const OnlyFansHeader: React.FC<OnlyFansHeaderProps> = ({
 
   return (
     <>
-      {/* Sticky Header Bar */}
-      <header className="w-full bg-white/95 backdrop-blur-md border-b border-slate-200/90 px-3 py-2.5 flex items-center justify-between sticky top-0 z-40 transition-shadow duration-200">
+      {/* Top Brand Banner: Luanda Privé Official Logo */}
+      <div className="bg-[#090d14] text-white px-3.5 py-2.5 flex items-center justify-between border-b border-slate-800/90 shadow-xs">
+        <div className="flex items-center gap-2.5">
+          <div className="w-7 h-7 rounded-xl bg-gradient-to-tr from-[#00aff0] to-[#0070ba] flex items-center justify-center text-white shadow-md shadow-[#00aff0]/25 font-black text-xs tracking-tighter">
+            LP
+          </div>
+          <div className="flex items-center gap-1.5">
+            <span className="font-black text-sm tracking-tight text-white">
+              LUANDA <span className="text-[#00aff0]">PRIVÉ</span>
+            </span>
+            <span className="text-[9px] uppercase tracking-widest font-extrabold text-[#00aff0] bg-[#00aff0]/15 px-1.5 py-0.5 rounded border border-[#00aff0]/30 flex items-center gap-0.5">
+              <Crown className="w-2.5 h-2.5" />
+              <span>VIP</span>
+            </span>
+          </div>
+        </div>
+
+        {/* User Account / Login Button */}
+        {user ? (
+          <div className="flex items-center gap-1.5 bg-slate-900 border border-slate-700/80 pl-1.5 pr-2.5 py-1 rounded-full text-white text-xs">
+            {user.photoURL ? (
+              <img
+                src={user.photoURL}
+                alt={user.displayName || 'Utilizador'}
+                className="w-5 h-5 rounded-full object-cover"
+                referrerPolicy="no-referrer"
+              />
+            ) : (
+              <div className="w-5 h-5 rounded-full bg-[#00aff0] text-white flex items-center justify-center text-[10px] font-bold">
+                {(user.displayName || 'U')[0].toUpperCase()}
+              </div>
+            )}
+            <span className="font-bold text-slate-200 max-w-[85px] sm:max-w-[120px] truncate text-xs">
+              {user.displayName?.split(' ')[0] || 'Membro'}
+            </span>
+            <button
+              onClick={onSignOut}
+              title="Terminar sessão"
+              className="text-slate-400 hover:text-rose-400 transition-colors ml-0.5 cursor-pointer"
+            >
+              <LogOut className="w-3.5 h-3.5" />
+            </button>
+          </div>
+        ) : (
+          <button
+            onClick={onOpenAuth}
+            className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-gradient-to-r from-[#00aff0] to-[#0090d0] hover:brightness-110 text-white transition-all text-xs font-bold shadow-sm active:scale-95 cursor-pointer"
+            title="Entrar na área VIP"
+          >
+            <User className="w-3.5 h-3.5" />
+            <span>Entrar</span>
+          </button>
+        )}
+      </div>
+
+      {/* Sticky Creator Navigation Sub-Header */}
+      <header className="w-full bg-white/95 backdrop-blur-md border-b border-slate-200/90 px-3 py-2 flex items-center justify-between sticky top-0 z-40 transition-shadow duration-200">
         {/* Left: Brand mark & Creator Info */}
         <div className="flex items-center gap-2.5 min-w-0">
-          {/* OnlyFans Icon Button that opens creator directory */}
+          {/* Loanda Privé Icon Button that opens creator directory */}
           <button
             onClick={onOpenDirectory}
-            className="flex items-center justify-center w-8 h-8 rounded-full bg-[#00aff0]/10 text-[#00aff0] hover:bg-[#00aff0]/20 transition-colors shrink-0"
-            title="Explorar todas as criadoras"
+            className="flex items-center justify-center w-8 h-8 rounded-full bg-gradient-to-tr from-slate-900 to-slate-800 text-[#00aff0] hover:scale-105 transition-all shrink-0 shadow-xs"
+            title="Loanda Privé - Explorar todas as criadoras"
           >
-            <span className="font-extrabold text-[13px] tracking-tight">OF</span>
+            <span className="font-extrabold text-[12px] tracking-tighter text-white">
+              LP<span className="text-[#00aff0]">.</span>
+            </span>
           </button>
 
           {/* Current Creator Identity */}
@@ -80,18 +142,7 @@ export const OnlyFansHeader: React.FC<OnlyFansHeaderProps> = ({
         </div>
 
         {/* Right: Actions */}
-        <div className="flex items-center gap-1 shrink-0">
-          {/* Quick Photo Upload Trigger */}
-          {onOpenPhotoManager && (
-            <button
-              onClick={onOpenPhotoManager}
-              className="flex items-center gap-1 px-2.5 py-1 rounded-full bg-slate-900 hover:bg-[#00aff0] text-white transition-all text-xs font-semibold shadow-xs active:scale-95"
-              title="Carregar ou trocar fotos reais das modelos"
-            >
-              <Camera className="w-3.5 h-3.5 text-[#00aff0]" />
-              <span className="hidden xs:inline">Fotos</span>
-            </button>
-          )}
+        <div className="flex items-center gap-1.5 shrink-0">
 
           {/* Quick Profile Switcher Trigger */}
           <button
@@ -168,25 +219,6 @@ export const OnlyFansHeader: React.FC<OnlyFansHeaderProps> = ({
                 <X className="w-4 h-4" />
               </button>
             </div>
-
-            {/* Photo Manager Shortcut in Profiles Drawer */}
-            {onOpenPhotoManager && (
-              <div className="p-2.5 bg-gradient-to-r from-slate-900 to-slate-800 border-b border-slate-700 text-white flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <Camera className="w-4 h-4 text-[#00aff0]" />
-                  <span className="text-xs font-bold">Fotos Reais das Modelos</span>
-                </div>
-                <button
-                  onClick={() => {
-                    setIsProfilesDrawerOpen(false);
-                    onOpenPhotoManager();
-                  }}
-                  className="px-2.5 py-1 rounded-lg bg-[#00aff0] hover:bg-[#009ed9] text-white text-[11px] font-bold transition-all shadow-xs"
-                >
-                  Carregar Fotos
-                </button>
-              </div>
-            )}
 
             <div className="p-2 space-y-1.5 overflow-y-auto">
               {allCreators.map((c) => {

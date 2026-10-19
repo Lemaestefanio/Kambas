@@ -28,6 +28,11 @@ export const TipModal: React.FC<TipModalProps> = ({
   const [message, setMessage] = useState<string>('');
 
   const handleSendTip = () => {
+    if (creator.tipCheckoutUrl && creator.tipCheckoutUrl.startsWith('http')) {
+      window.location.href = creator.tipCheckoutUrl;
+      return;
+    }
+
     // Generate a temporary plan object for checkout
     const tipPlan: Plan = {
       id: `tip-${selectedAmount}`,
@@ -37,7 +42,7 @@ export const TipModal: React.FC<TipModalProps> = ({
       rawPrice: selectedAmount,
       badge: 'Gorjeta Direta',
       badgeType: 'accent',
-      checkoutUrl: 'https://pay.meuskambas.online/checkout/sandra-gomes-chat-privado-30-dias',
+      checkoutUrl: creator.checkoutUrl || 'https://pay.meuskambas.online/checkout/sandra-gomes-chat-privado-30-dias',
       features: [
         `Envio de gorjeta direta de ${selectedAmount.toLocaleString('pt-AO')} Kz`,
         `Mensagem privada para ${creator.shortName}: "${message || 'Mimo para você amor'}"`,

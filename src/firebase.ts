@@ -10,7 +10,16 @@ import {
   onSnapshot,
   writeBatch,
 } from 'firebase/firestore';
-import { getAuth } from 'firebase/auth';
+import {
+  getAuth,
+  GoogleAuthProvider,
+  signInWithPopup,
+  signInAnonymously,
+  updateProfile,
+  signOut as fbSignOut,
+  onAuthStateChanged,
+  User as FirebaseUser,
+} from 'firebase/auth';
 import firebaseConfig from '../firebase-applet-config.json';
 import { Creator } from './types';
 
@@ -20,6 +29,7 @@ const app = initializeApp(firebaseConfig);
 // Initialize Firestore with specific database ID (CRITICAL: Database will break without this)
 export const db = getFirestore(app, firebaseConfig.firestoreDatabaseId);
 export const auth = getAuth(app);
+const googleProvider = new GoogleAuthProvider();
 
 // Error Handling conformant to FirestoreErrorInfo specification
 export enum OperationType {
@@ -212,3 +222,78 @@ export async function batchUpdateAvatarsInFirestore(
     handleFirestoreError(err, OperationType.WRITE, path);
   }
 }
+
+/**
+ * Sign in with Google Popup
+ */
+export async function signInWithGoogle(): Promise<FirebaseUser | null> {
+  try {
+    const res = await signInWithPopup(auth, googleProvider);
+    if (res.user) {
+      // Save or update user record in Firestore
+      const userRef = doc(db, 'users', res.user.uid);
+      await setDoc(
+        userRef,
+        {
+          uid: res.user.uid,
+          email: res.user.email || '',
+          displayName: res.user.displayName || 'Fã VIP',
+          photoURL: res.user.photoURL || '',
+          lastLoginAt: new Date().toISOString(),
+        },
+        { merge: true }
+      );
+    }
+    return res.user;
+  } catch (err) {
+    console.error('Google Sign-in error:', err);
+    throw err;
+  }
+}
+
+/**
+ * Sign in anonymously with a nickname for private fans
+ */
+export async function signInAnonymouslyWithNickname(nickname: string): Promise<FirebaseUser | null> {
+  try {
+    const res = await signInAnonymously(auth);
+    if (res.user) {
+      const cleanName = nickname.trim() || 'Fã VIP Anónimo';
+      try {
+        await updateProfile(res.user, { displayName: cleanName });
+      } catch (e) {
+        console.warn('Could not update profile name:', e);
+      }
+      const userRef = doc(db, 'users', res.user.uid);
+      await setDoc(
+        userRef,
+        {
+          uid: res.user.uid,
+          displayName: cleanName,
+          isAnonymous: true,
+          lastLoginAt: new Date().toISOString(),
+        },
+        { merge: true }
+      );
+    }
+    return res.user;
+  } catch (err) {
+    console.error('Anonymous sign-in error:', err);
+    throw err;
+  }
+}
+
+/**
+ * Sign out current user
+ */
+export async function signOutUser(): Promise<void> {
+  await fbSignOut(auth);
+}
+
+/**
+ * Subscribe to auth state changes
+ */
+export function onAuthChange(callback: (user: FirebaseUser | null) => void) {
+  return onAuthStateChanged(auth, callback);
+}
+

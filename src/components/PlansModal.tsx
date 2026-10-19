@@ -24,6 +24,10 @@ export const PlansModal: React.FC<PlansModalProps> = ({
   const activePlan = creator.plans.find((p) => p.id === selectedPlanId) || defaultPlan;
 
   const handleContinue = () => {
+    if (creator.checkoutUrl && creator.checkoutUrl.startsWith('http')) {
+      window.location.href = creator.checkoutUrl;
+      return;
+    }
     onSelectPlan(activePlan);
   };
 

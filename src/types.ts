@@ -79,9 +79,20 @@ export interface Creator {
   incomingMessage: string;
   whatsappNumber: string;
   plans: Plan[];
+  checkoutUrl?: string;
+  tipCheckoutUrl?: string;
+  videoPaywallSeconds?: number;
 }
 
 export interface FAQItem {
   question: string;
   answer: string;
+}
+
+export interface AppUser {
+  uid: string;
+  displayName: string;
+  photoURL?: string;
+  email?: string;
+  isAnonymous?: boolean;
 }
