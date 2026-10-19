@@ -1,0 +1,39 @@
+name: Build Kambas original
+
+on:
+  push:
+    branches:
+      - codex/kambas-preview-20261019
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Read the verified original version
+        uses: actions/checkout@v7
+        with:
+          ref: a0c9245a734db6e3cdee071b133a5126a29c3c3b
+          persist-credentials: false
+      - uses: actions/setup-node@v7
+        with:
+          node-version: '24'
+          package-manager-cache: false
+      - name: Install Bun
+        run: npm install --global bun
+      - name: Install the locked dependencies
+        run: bun install --frozen-lockfile
+      - name: Build the original site
+        run: bun run build
+      - name: Confirm original tracked files are unchanged
+        run: git diff --exit-code
+      - name: Retain the built site for preview preparation
+        uses: actions/upload-artifact@v7
+        with:
+          name: kambas-original-a0c9245
+          path: dist/
+          if-no-files-found: error
+          retention-days: 7
