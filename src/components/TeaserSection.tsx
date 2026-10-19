@@ -78,3 +78,4 @@ export const TeaserSection: React.FC<TeaserSectionProps> = ({
     </div>
   );
 };
+

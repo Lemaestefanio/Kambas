@@ -4,8 +4,10 @@ import { afterAll, beforeAll, describe, expect, mock, setSystemTime, test } from
 import { installReadOnlyBrowser } from './mock-browser';
 
 // CI restores .baseline/src from the approved original commit before this test.
-// Firebase effects are intentionally excluded: this checks exact initial HTML,
-// not database integration, animation timing, layout or screenshot equivalence.
+// Exact comparisons still protect the unchanged dialogs and global styles.
+// The requested age gate, live-data readiness, branding, media and comments are
+// intentional UX changes, covered by behavior assertions here and the isolated
+// age-consent, media-preview and platform-readiness interaction suites.
 const browser = installReadOnlyBrowser();
 const unexpectedFirebaseCall = () => {
   throw new Error('Static UI comparison unexpectedly called Firebase');
@@ -37,8 +39,7 @@ mock.module(new URL('../.baseline/src/firebase.ts', import.meta.url).pathname, (
 
 const original = (path: string) => import(new URL(`../.baseline/src/${path}`, import.meta.url).href);
 const current = (path: string) => import(new URL(`../src/${path}`, import.meta.url).href);
-let OriginalApp: React.ComponentType;
-let CurrentApp: React.ComponentType;
+let PlatformContent: React.ComponentType;
 let Provider: React.ComponentType<React.PropsWithChildren>;
 let creators: any[];
 const originalRandom = Math.random;
@@ -46,9 +47,8 @@ const originalRandom = Math.random;
 beforeAll(async () => {
   setSystemTime(new Date('2026-10-19T18:00:00.000Z'));
   Math.random = () => 0.5;
-  [OriginalApp, CurrentApp, Provider, creators] = await Promise.all([
-    original('App.tsx').then(module => module.default),
-    current('App.tsx').then(module => module.default),
+  [PlatformContent, Provider, creators] = await Promise.all([
+    current('PlatformApp.tsx').then(module => module.PlatformContent),
     current('cms/SiteContent.tsx').then(module => module.SiteContentProvider),
     original('data/content.ts').then(module => module.CREATORS),
   ]);
@@ -75,14 +75,18 @@ function expectSameMarkup(label: string, actual: string, expected: string) {
   expect(actual).toBe(expected);
 }
 
-describe('approved public pages retain exact default initial markup', () => {
-  for (const route of ['/', '/perfil-3', '/promo-3', '/mensagens', '/comentarios']) {
-    test(route, () => {
+describe('public pages wait for current published content', () => {
+  for (const route of ['/', '/perfil-3', '/promo-3', '/mensagens', '/comentarios', '/checkout']) {
+    test(`${route} does not flash the previous creator before live snapshots`, () => {
       browser.setRoute(route);
-      const expected = renderToStaticMarkup(<OriginalApp />);
-      browser.setRoute(route);
-      const actual = renderToStaticMarkup(<Provider><CurrentApp /></Provider>);
-      expectSameMarkup(route, actual, expected);
+      const html = renderToStaticMarkup(<Provider><PlatformContent /></Provider>);
+      expect(html).toContain('role="status"');
+      expect(html).toContain('/assets/platform-logo.png');
+      expect(html).not.toContain('<video');
+      for (const creator of creators) {
+        expect(html).not.toContain(creator.avatar);
+        expect(html).not.toContain(renderToStaticMarkup(<>{creator.name}</>));
+      }
     });
   }
 
@@ -99,8 +103,8 @@ describe('approved public pages retain exact default initial markup', () => {
 // also moved into the CMS, so compare them without invoking a browser event.
 describe('public dialogs retain their approved default markup', () => {
   const names = [
-    'PlansModal', 'PaymentModal', 'StoryViewerModal', 'CreatorChatDrawer',
-    'CreatorsDirectoryModal', 'PostCommentsModal', 'TipModal', 'AuthModal',
+    'PlansModal', 'PaymentModal', 'CreatorChatDrawer',
+    'CreatorsDirectoryModal', 'TipModal', 'AuthModal',
     'InternalCheckoutPage',
   ];
   for (const name of names) {
@@ -127,24 +131,70 @@ describe('public dialogs retain their approved default markup', () => {
   }
 });
 
-describe('administrative sharing links open the selected profile', () => {
-  for (const path of ['/', '/perfil-3', '/promo-3', '/mensagens']) {
+describe('administrative sharing links retain route and creator selection', () => {
+  for (const path of ['/', '/perfil-3', '/promo-3', '/mensagens', '/comentarios']) {
     test(path, async () => {
-      const { profilePageUrl } = await current('cms/AdminPageLinks.tsx');
+      const [{ profilePageUrl }, { getRequestedCreatorId }] = await Promise.all([
+        current('cms/AdminPageLinks.tsx'), current('utils/creatorRoute.ts'),
+      ]);
       const selected = creators[1];
       const url = new URL(profilePageUrl('https://preview.example', path, selected.id));
-      browser.setRoute(url.pathname + url.search);
-      const html = renderToStaticMarkup(<Provider><CurrentApp /></Provider>);
-      const expectedContent = path === '/mensagens' ? selected.name : selected.bio.slice(0, 160);
-      const escaped = renderToStaticMarkup(<>{expectedContent}</>);
-      expect(html).toContain(escaped);
+      expect(url.origin).toBe('https://preview.example');
+      expect(url.pathname).toBe(path);
+      expect(getRequestedCreatorId(url.search)).toBe(selected.id);
     });
   }
 
-  test('a deleted or unknown profile link falls back to the available catalogue', () => {
-    browser.setRoute('/');
-    const expected = renderToStaticMarkup(<Provider><CurrentApp /></Provider>);
-    browser.setRoute('/?creator=deleted-profile');
-    expect(renderToStaticMarkup(<Provider><CurrentApp /></Provider>)).toBe(expected);
+  test('a story opens with controls but does not fetch its video before play', async () => {
+    const { StoryViewerModal } = await current('components/StoryViewerModal.tsx');
+    const creator = {
+      ...creators[0],
+      highlights: [{ id: 'test-story', type: 'video', mediaUrl: 'https://media.example/story.mp4', coverImage: 'https://media.example/story.webp', title: 'Story de teste', caption: 'Legenda de teste', time: 'Hoje' }],
+    };
+    const html = renderToStaticMarkup(<Provider><StoryViewerModal creator={creator} initialStoryIndex={0} isOpen onClose={() => {}} onUnlockClick={() => {}} /></Provider>);
+    expect(html).toContain('Legenda de teste');
+    expect(html).toContain('aria-label="Reproduzir prévia"');
+    expect(html).toContain('preload="none"');
+    expect(html).not.toContain('https://media.example/story.mp4');
+    expect(html).not.toContain('https://media.example/story.webp');
   });
 });
+
+describe('published comments have an explicit source and post association', () => {
+  for (const name of ['PostCommentsModal', 'DedicatedCommentsPage']) {
+    test(`${name} shows an empty state without inventing testimonials`, async () => {
+      const component = (await current(`components/${name}.tsx`))[name];
+      const creator = { ...creators[0], managedComments: [] };
+      const html = renderToStaticMarkup(<Provider>{React.createElement(component, {
+        creator, isOpen: true, postCaption: '', user: null,
+        onClose() {}, onBack() {}, onUnlockClick() {},
+      })}</Provider>);
+      expect(html).toContain('Ainda não há comentários publicados.');
+      expect(html).not.toContain('<article');
+      expect(html).toContain('não é publicado para outras pessoas');
+    });
+
+    test(`${name} identifies examples and shows only the selected post's comments`, async () => {
+      const component = (await current(`components/${name}.tsx`))[name];
+      const creator = {
+        ...creators[0],
+        posts: [{ id: 'first', text: 'Primeira publicação' }, { id: 'second', text: 'Outra publicação' }],
+        managedComments: [
+          { id: 'example', name: 'Exemplo autorizado', text: 'Exemplo visível', kind: 'demonstration', postId: 'first' },
+          { id: 'real', name: 'Comentador autorizado', text: 'Comentário autorizado visível', kind: 'real', postId: 'first' },
+          { id: 'other', name: 'Outro comentador', text: 'Comentário de outra publicação', kind: 'real', postId: 'second' },
+        ],
+      };
+      const html = renderToStaticMarkup(<Provider>{React.createElement(component, {
+        creator, isOpen: true, postId: 'first', postCaption: 'Primeira publicação', user: null,
+        onClose() {}, onBack() {}, onUnlockClick() {},
+      })}</Provider>);
+      expect(html).toContain('Exemplo visível');
+      expect(html).toContain('Comentário autorizado visível');
+      expect(html).not.toContain('Comentário de outra publicação');
+      expect(html.match(/Comentário demonstrativo/g)).toHaveLength(1);
+      expect(html.match(/<article\b/g)).toHaveLength(2);
+    });
+  }
+});
+

@@ -1,7 +1,9 @@
 import { useSiteContent } from '../cms/SiteContent';
 import React, { useState } from 'react';
-import { Lock, Heart, Eye } from 'lucide-react';
+import { Lock, Heart } from 'lucide-react';
 import { Creator, MediaPhoto } from '../types';
+import { MediaPreview } from './MediaPreview';
+import { isMediaPublic } from '../utils/mediaPreview';
 
 interface PhotoGalleryGridProps {
   creator: Creator;
@@ -37,41 +39,19 @@ export const PhotoGalleryGrid: React.FC<PhotoGalleryGridProps> = ({
 
       {/* Grid of 3 columns */}
       <div className="grid grid-cols-3 gap-2">
-        {creator.galleryPhotos.map((photo) => (
-          <div
-            key={photo.id}
-            onClick={() => (photo.unlocked ? setSelectedPhoto(photo) : onUnlockClick())}
-            className="relative aspect-square rounded-xl overflow-hidden bg-slate-100 cursor-pointer group"
-          >
-            <img
-              src={photo.url}
-              alt={photo.caption}
-              loading="lazy"
-              decoding="async"
-              className={`w-full h-full object-cover transition-transform duration-300 group-hover:scale-105 ${
-                photo.unlocked ? '' : 'filter blur-md brightness-75'
-              }`}
-            />
-
-            {!photo.unlocked ? (
-              <div className="absolute inset-0 bg-black/40 flex flex-col items-center justify-center p-2 text-center">
-                <div className="w-8 h-8 rounded-full bg-white/90 flex items-center justify-center shadow-md text-[#00aff0] mb-1">
-                  <Lock className="w-4 h-4" />
-                </div>
-                <span className="text-[9px] font-bold text-white bg-black/60 px-2 py-0.5 rounded-full">
-                  {copy('home.photos.vip')}
-                </span>
-              </div>
-            ) : (
-              <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent opacity-0 group-hover:opacity-100 transition-opacity flex items-end p-2 text-white">
-                <div className="flex items-center gap-1 text-[11px] font-medium">
-                  <Heart className="w-3.5 h-3.5 fill-rose-500 text-rose-500" />
-                  <span>{photo.likes}</span>
-                </div>
-              </div>
-            )}
-          </div>
-        ))}
+        {creator.galleryPhotos.map((photo) => <div key={photo.id} className="overflow-hidden rounded-xl border border-slate-100 bg-white">
+          {isMediaPublic(photo) ? <button type="button" onClick={() => setSelectedPhoto(photo)} aria-label={photo.caption} className="relative block w-full cursor-pointer group">
+            <MediaPreview kind="image" src={photo.url} alt={photo.caption} settings={photo} className="aspect-square w-full transition-transform duration-300 group-hover:scale-105" />
+            <span className="absolute inset-x-0 bottom-0 flex items-center gap-1 bg-gradient-to-t from-black/60 to-transparent p-2 text-[11px] font-medium text-white opacity-0 transition-opacity group-hover:opacity-100">
+              <Heart className="h-3.5 w-3.5 fill-rose-500 text-rose-500" /><span>{photo.likes}</span>
+            </span>
+          </button> : <>
+            <MediaPreview kind="image" src={photo.url} alt={photo.caption} settings={photo} className="aspect-square w-full" />
+            <button type="button" onClick={onUnlockClick} aria-label={`${copy('home.photos.unlock')}: ${photo.caption}`} className="flex min-h-11 w-full items-center justify-center gap-1 bg-sky-50 px-1.5 py-2 text-[10px] font-bold text-[#008fc5] hover:bg-sky-100">
+              <Lock className="h-3.5 w-3.5 shrink-0" /><span>{copy('home.photos.vip')}</span>
+            </button>
+          </>}
+        </div>)}
       </div>
 
       {/* Photo Lightbox Modal */}
@@ -87,6 +67,7 @@ export const PhotoGalleryGrid: React.FC<PhotoGalleryGridProps> = ({
             <img
               src={selectedPhoto.url}
               alt={selectedPhoto.caption}
+              decoding="async"
               className="w-full max-h-[75vh] object-contain bg-black"
             />
             <div className="p-4 flex items-center justify-between text-white">
@@ -106,3 +87,4 @@ export const PhotoGalleryGrid: React.FC<PhotoGalleryGridProps> = ({
     </div>
   );
 };
+

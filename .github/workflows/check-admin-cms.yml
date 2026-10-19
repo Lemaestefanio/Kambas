@@ -28,17 +28,24 @@ jobs:
           bun install --frozen-lockfile
       - name: Check migration logic without credentials or network
         run: node --test scripts/legacy-media.test.mjs
-      - name: Preserve creation dates when saving profiles
-        run: bun test tests/creator-save.test.ts
+      - name: Validate profile saves, image optimization, comments and action URLs
+        run: bun test tests/creator-save.test.ts tests/image-optimization.test.ts tests/managed-comments.test.ts tests/action-links.test.ts
       - name: Check application types
         run: bun run lint
       - name: Build production bundle
         run: bun run build
-      - name: Compare the approved original rendering
+      - name: Preserve unchanged dialogs and validate intentional public UI changes
         run: |
           mkdir -p .baseline
           git archive a0c9245a734db6e3cdee071b133a5126a29c3c3b src firebase-applet-config.json | tar -x -C .baseline
           bun test tests/default-ui.test.tsx tests/content-model.test.ts
+      - name: Install isolated browser test tooling
+        run: bun add --dev happy-dom
+      - name: Verify age consent, media playback and published profile readiness
+        run: |
+          bun test tests/age-consent.test.ts
+          bun test tests/media-preview.test.tsx
+          bun test tests/platform-readiness.test.tsx
       - name: Install isolated security test tooling
         run: |
           bun add --dev @firebase/rules-unit-testing firebase-tools
@@ -53,3 +60,4 @@ jobs:
           path: dist/
           if-no-files-found: error
           retention-days: 7
+

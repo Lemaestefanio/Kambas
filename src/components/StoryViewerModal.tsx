@@ -1,7 +1,8 @@
 import { useSiteContent } from '../cms/SiteContent';
 import React, { useState, useEffect } from 'react';
-import { X, ChevronLeft, ChevronRight, Lock, Heart, Send } from 'lucide-react';
+import { X, ChevronLeft, ChevronRight, Lock } from 'lucide-react';
 import { StoryHighlight, Creator } from '../types';
+import { MediaPreview } from './MediaPreview';
 
 interface StoryViewerModalProps {
   creator: Creator;
@@ -23,12 +24,18 @@ export const StoryViewerModal: React.FC<StoryViewerModalProps> = ({
   const [currentIndex, setCurrentIndex] = useState(initialStoryIndex);
   const [progress, setProgress] = useState(0);
   const [reactionSent, setReactionSent] = useState<string | null>(null);
+  const [videoPlaying, setVideoPlaying] = useState(false);
 
   const currentStory: StoryHighlight = creator.highlights[currentIndex] || creator.highlights[0];
 
   useEffect(() => {
-    if (!isOpen) return;
-    setProgress(0);
+    if (isOpen) { setCurrentIndex(initialStoryIndex); setProgress(0); setVideoPlaying(false); }
+  }, [isOpen, initialStoryIndex]);
+
+  useEffect(() => { setProgress(0); }, [currentIndex]);
+
+  useEffect(() => {
+    if (!isOpen || (currentStory?.type === 'video' && !videoPlaying)) return;
     const interval = setInterval(() => {
       setProgress((p) => {
         if (p >= 100) {
@@ -46,7 +53,7 @@ export const StoryViewerModal: React.FC<StoryViewerModalProps> = ({
     }, 100);
 
     return () => clearInterval(interval);
-  }, [currentIndex, creator.highlights.length, onClose, isOpen]);
+  }, [currentIndex, creator.highlights.length, currentStory?.type, videoPlaying, onClose, isOpen]);
 
   const handlePrev = (e: React.MouseEvent) => {
     e.stopPropagation();
@@ -101,6 +108,7 @@ export const StoryViewerModal: React.FC<StoryViewerModalProps> = ({
             <img
               src={creator.avatar}
               alt={creator.name}
+              decoding="async" width={32} height={32}
               className="w-8 h-8 rounded-full object-cover ring-2 ring-[#00aff0]"
             />
             <div className="flex flex-col">
@@ -120,21 +128,9 @@ export const StoryViewerModal: React.FC<StoryViewerModalProps> = ({
 
         {/* Media Container with Left/Right Tap zones */}
         <div className="relative flex-1 bg-black flex items-center justify-center overflow-hidden">
-          {currentStory.type === 'video' ? (
-            <video
-              src={currentStory.mediaUrl}
-              autoPlay
-              loop
-              playsInline
-              className="w-full h-full object-cover"
-            />
-          ) : (
-            <img
-              src={currentStory.mediaUrl}
-              alt={currentStory.title}
-              className="w-full h-full object-cover"
-            />
-          )}
+          <MediaPreview key={currentStory.id} kind={currentStory.type} src={currentStory.mediaUrl}
+            poster={currentStory.coverImage} alt={currentStory.title} settings={currentStory} defaultPublic
+            onPlaybackChange={setVideoPlaying} className="absolute inset-0 h-full w-full" />
 
           {/* Left / Right Click Areas */}
           <button
@@ -195,3 +191,4 @@ export const StoryViewerModal: React.FC<StoryViewerModalProps> = ({
     </div>
   );
 };
+

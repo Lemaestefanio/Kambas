@@ -26,7 +26,7 @@ service cloud.firestore {
           'posts', 'incomingMessage', 'whatsappNumber', 'plans', 'checkoutUrl',
           'tipCheckoutUrl', 'mimoCheckoutUrls', 'customPaymentButtonText',
           'bannerVideo', 'videoPaywallSeconds', 'mimoPrices',
-          'preferInternalCheckout', 'createdAt', 'updatedAt'
+          'preferInternalCheckout', 'managedComments', 'actionLinks', 'createdAt', 'updatedAt'
         ])
         && data.id == creatorId
         && data.name is string && data.name.size() > 0 && data.name.size() <= 500
@@ -41,8 +41,27 @@ service cloud.firestore {
         && (!('highlights' in data) || (data.highlights is list && data.highlights.size() <= 100))
         && (!('galleryPhotos' in data) || (data.galleryPhotos is list && data.galleryPhotos.size() <= 1000))
         && (!('voiceNotes' in data) || (data.voiceNotes is list && data.voiceNotes.size() <= 1000))
+        && (!('managedComments' in data) || (data.managedComments is list && data.managedComments.size() <= 100))
+        && (!('actionLinks' in data) || validActionLinks(data.actionLinks))
         && data.updatedAt is timestamp
         && (!('createdAt' in data) || data.createdAt is timestamp);
+    }
+
+    function actionUrl(value) {
+      return value is string && value.size() <= 4096
+        && (value == '' || value.matches('^https://[^\\s]+$') || value.matches('^/[^/\\s][^\\s]*$') || value == '/');
+    }
+
+    function validActionLinks(data) {
+      return data is map
+        && data.keys().hasOnly(['subscribe', 'message', 'tip', 'signup', 'login', 'explore', 'notifications'])
+        && actionUrl(data.get('subscribe', ''))
+        && actionUrl(data.get('message', ''))
+        && actionUrl(data.get('tip', ''))
+        && actionUrl(data.get('signup', ''))
+        && actionUrl(data.get('login', ''))
+        && actionUrl(data.get('explore', ''))
+        && actionUrl(data.get('notifications', ''));
     }
 
     function validBank(data) {
@@ -109,3 +128,4 @@ service cloud.firestore {
     match /{document=**} { allow read, write: if false; }
   }
 }
+

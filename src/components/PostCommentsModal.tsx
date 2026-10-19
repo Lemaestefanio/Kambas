@@ -1,228 +1,52 @@
 import { useSiteContent } from '../cms/SiteContent';
-import React, { useState } from 'react';
-import { X, Send, Heart, CheckCircle2 } from 'lucide-react';
-import { Creator } from '../types';
-
-interface Comment {
-  id: string;
-  author: string;
-  handle: string;
-  isCreator?: boolean;
-  isVip?: boolean;
-  text: string;
-  time: string;
-  likes: number;
-  isLiked?: boolean;
-}
+import React, { useEffect, useState } from 'react';
+import { X, Send, Heart, UserRound, MessageCircle } from 'lucide-react';
+import type { Creator } from '../types';
+import { getManagedComments, resolveCommentPostId } from '../utils/managedComments';
 
 interface PostCommentsModalProps {
   isOpen: boolean;
   onClose: () => void;
   creator: Creator;
   postCaption: string;
+  postId?: string;
 }
+interface LocalComment { id: string; name: string; text: string; }
 
-export const PostCommentsModal: React.FC<PostCommentsModalProps> = ({
-  isOpen,
-  onClose,
-  creator,
-  postCaption,
-}) => {
+export const PostCommentsModal: React.FC<PostCommentsModalProps> = ({ isOpen, onClose, creator, postCaption, postId }) => {
   const { copy } = useSiteContent();
-
-  const initialComments: Comment[] = [
-    {
-      id: 'c1',
-      author: copy("overlay.post-comments-modal.007"),
-      handle: copy("overlay.post-comments-modal.008"),
-      isVip: true,
-      text: copy("overlay.post-comments-modal.024", { name: creator.shortName }),
-      time: copy("overlay.post-comments-modal.009"),
-      likes: 18,
-    },
-    {
-      id: 'c2',
-      author: creator.name,
-      handle: creator.handle,
-      isCreator: true,
-      isVip: true,
-      text: copy("overlay.post-comments-modal.010"),
-      time: copy("overlay.post-comments-modal.011"),
-      likes: 38,
-      isLiked: true,
-    },
-    {
-      id: 'c3',
-      author: copy("overlay.post-comments-modal.012"),
-      handle: copy("overlay.post-comments-modal.013"),
-      isVip: true,
-      text: copy("overlay.post-comments-modal.025", { name: creator.shortName }),
-      time: copy("overlay.post-comments-modal.014"),
-      likes: 14,
-    },
-    {
-      id: 'c4',
-      author: creator.name,
-      handle: creator.handle,
-      isCreator: true,
-      isVip: true,
-      text: copy("overlay.post-comments-modal.015"),
-      time: copy("overlay.post-comments-modal.016"),
-      likes: 29,
-      isLiked: true,
-    },
-    {
-      id: 'c5',
-      author: copy("overlay.post-comments-modal.017"),
-      handle: copy("overlay.post-comments-modal.018"),
-      isVip: true,
-      text: copy("overlay.post-comments-modal.019"),
-      time: copy("overlay.post-comments-modal.020"),
-      likes: 22,
-    },
-  ];
-  const [comments, setComments] = useState<Comment[]>(initialComments);
-  const displayedComments = comments.map((entry) => {
-    const original = initialComments.find((item) => item.id === entry.id);
-    return original ? { ...entry, ...original, likes: entry.likes, isLiked: entry.isLiked } : entry;
-  });
-
+  const scope = `${creator.id}:${resolveCommentPostId(creator, postId, postCaption) || 'profile'}`;
+  const [localState, setLocalState] = useState<{ scope: string; comments: LocalComment[] }>({ scope, comments: [] });
+  const [likes, setLikes] = useState<Record<string, boolean>>({});
   const [newComment, setNewComment] = useState('');
+  useEffect(() => { setNewComment(''); setLikes({}); }, [scope]);
+  const localComments = localState.scope === scope ? localState.comments : [];
+  const managed = getManagedComments(creator, postId, postCaption);
+  const comments = [
+    ...localComments.map((comment) => ({ ...comment, key: `local:${comment.id}`, time: 'Agora', label: 'Apenas nesta sessão' })),
+    ...managed.map((comment) => ({ ...comment, key: `managed:${comment.id}`, label: comment.kind === 'real' ? '' : 'Comentário demonstrativo' })),
+  ];
 
-  const handleAddComment = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!newComment.trim()) return;
-
-    const added: Comment = {
-      id: `c-${Date.now()}`,
-      author: copy("overlay.post-comments-modal.021"),
-      handle: copy("overlay.post-comments-modal.022"),
-      isVip: true,
-      text: newComment.trim(),
-      time: copy("overlay.post-comments-modal.023"),
-      likes: 1,
-      isLiked: true,
-    };
-
-    setComments((prev) => [added, ...prev]);
+  const handleAddComment = (event: React.FormEvent) => {
+    event.preventDefault();
+    const text = newComment.trim();
+    if (!text) return;
+    setLocalState({ scope, comments: [{ id: crypto.randomUUID(), name: 'Tu', text }, ...localComments] });
     setNewComment('');
   };
-
-  const handleToggleLike = (id: string) => {
-    setComments((prev) =>
-      prev.map((c) => {
-        if (c.id === id) {
-          const nextLiked = !c.isLiked;
-          return {
-            ...c,
-            isLiked: nextLiked,
-            likes: c.likes + (nextLiked ? 1 : -1),
-          };
-        }
-        return c;
-      })
-    );
-  };
-
   if (!isOpen) return null;
 
-  return (
-    <div className="fixed inset-0 z-[10005] bg-black/80 backdrop-blur-sm flex items-end sm:items-center justify-center p-0 sm:p-4 animate-fade-in">
-      <div
-        className="w-full sm:max-w-md bg-white rounded-t-3xl sm:rounded-2xl shadow-2xl flex flex-col max-h-[85vh] sm:max-h-[600px] border border-slate-200 overflow-hidden"
-        onClick={(e) => e.stopPropagation()}
-      >
-        {/* Header */}
-        <div className="p-4 border-b border-slate-100 flex items-center justify-between bg-slate-50">
-          <div>
-            <h3 className="text-sm font-bold text-slate-900">{copy("overlay.post-comments-modal.001")}</h3>
-            <p className="text-[11px] text-slate-500 truncate max-w-[280px]">
-              {postCaption}
-            </p>
-          </div>
-          <button
-            onClick={onClose}
-            className="p-1.5 text-slate-400 hover:text-slate-700 rounded-full hover:bg-slate-200 transition-colors"
-          >
-            <X className="w-5 h-5" />
-          </button>
-        </div>
-
-        {/* Discreet Notice */}
-        <div className="px-4 py-2 bg-slate-100/70 border-b border-slate-200/50 text-[11px] text-slate-500 flex items-center gap-1.5">
-          <span className="w-2 h-2 rounded-full bg-emerald-500 shrink-0"></span>
-          <span>{copy("overlay.post-comments-modal.002")}</span>
-        </div>
-
-        {/* Comments List */}
-        <div className="flex-1 overflow-y-auto p-4 space-y-4">
-          {displayedComments.map((comment) => (
-            <div key={comment.id} className="flex items-start gap-3 text-left">
-              {/* Creator has verified photo, fans are anonymous without photo */}
-              {comment.isCreator ? (
-                <img
-                  src={creator.avatar}
-                  alt={creator.name}
-                  className="w-8 h-8 rounded-full object-cover shrink-0 ring-2 ring-[#00aff0]/40"
-                />
-              ) : (
-                <div
-                  className="w-8 h-8 rounded-full bg-slate-800 text-slate-200 flex items-center justify-center text-[10px] font-bold shrink-0 border border-slate-700 shadow-2xs"
-                  title={copy("overlay.post-comments-modal.005")}
-                >{copy("overlay.post-comments-modal.003")}</div>
-              )}
-              <div className="flex-1 min-w-0">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-1 flex-wrap">
-                    <span className="text-xs font-bold text-slate-900">
-                      {comment.author}
-                    </span>
-                    {comment.isCreator && (
-                      <CheckCircle2 className="w-3.5 h-3.5 text-white fill-[#00aff0] shrink-0" />
-                    )}
-                    {comment.isVip && !comment.isCreator && (
-                      <span className="px-1.5 py-0.2 rounded bg-amber-100 text-amber-800 text-[9px] font-bold">{copy("overlay.post-comments-modal.004")}</span>
-                    )}
-                    <span className="text-[10px] text-slate-400">· {comment.time}</span>
-                  </div>
-                  <button
-                    onClick={() => handleToggleLike(comment.id)}
-                    className="flex items-center gap-1 text-[11px] text-slate-400 hover:text-rose-500 transition-colors"
-                  >
-                    <Heart
-                      className={`w-3.5 h-3.5 ${
-                        comment.isLiked ? 'fill-rose-500 text-rose-500' : ''
-                      }`}
-                    />
-                    <span>{comment.likes}</span>
-                  </button>
-                </div>
-                <p className="text-xs text-slate-700 mt-1 leading-relaxed">
-                  {comment.text}
-                </p>
-              </div>
-            </div>
-          ))}
-        </div>
-
-        {/* New Comment Input */}
-        <form onSubmit={handleAddComment} className="p-3 border-t border-slate-100 bg-white flex items-center gap-2">
-          <input
-            type="text"
-            placeholder={copy("overlay.post-comments-modal.006")}
-            value={newComment}
-            onChange={(e) => setNewComment(e.target.value)}
-            className="flex-1 px-3 py-2 bg-slate-100 border border-slate-200 rounded-full text-xs text-slate-900 placeholder-slate-400 focus:outline-none focus:border-[#00aff0]"
-          />
-          <button
-            type="submit"
-            disabled={!newComment.trim()}
-            className="w-9 h-9 rounded-full bg-[#00aff0] hover:bg-[#009ed9] disabled:opacity-40 text-white flex items-center justify-center transition-colors shrink-0"
-          >
-            <Send className="w-4 h-4" />
-          </button>
-        </form>
+  return <div role="dialog" aria-modal="true" aria-label="Comentários da publicação" className="fixed inset-0 z-[10005] flex items-end justify-center bg-black/80 p-0 backdrop-blur-sm sm:items-center sm:p-4">
+    <div className="flex max-h-[85vh] w-full flex-col overflow-hidden rounded-t-3xl border border-slate-200 bg-white shadow-2xl sm:max-h-[600px] sm:max-w-md sm:rounded-2xl" onClick={(event) => event.stopPropagation()}>
+      <header className="flex items-center justify-between gap-3 border-b border-slate-100 bg-slate-50 p-4"><div className="min-w-0"><h3 className="text-sm font-bold text-slate-900">{copy('overlay.post-comments-modal.001')} <span className="text-slate-400">({comments.length})</span></h3>{postCaption && <p className="mt-1 truncate text-[11px] text-slate-500">{postCaption}</p>}</div><button type="button" aria-label="Fechar comentários" onClick={onClose} className="rounded-full p-1.5 text-slate-500 hover:bg-slate-200"><X size={20} /></button></header>
+      <div className="flex-1 space-y-4 overflow-y-auto p-4">
+        {comments.length === 0 && <div className="py-7 text-center text-slate-500"><MessageCircle size={25} className="mx-auto mb-2 text-slate-300" /><p className="text-sm">Ainda não há comentários publicados.</p></div>}
+        {comments.map((comment) => <article key={comment.key} className="flex items-start gap-3 text-left">
+          <span aria-hidden="true" className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-slate-100 text-slate-500"><UserRound size={17} /></span>
+          <div className="min-w-0 flex-1"><div className="flex items-start justify-between gap-2"><div className="min-w-0"><p className="break-words text-xs font-bold text-slate-900">{comment.name}</p>{comment.label && <span className="mt-1 inline-block rounded bg-slate-100 px-1.5 py-0.5 text-[10px] font-medium text-slate-600">{comment.label}</span>}{comment.time && <p className="mt-1 text-[10px] text-slate-400">{comment.time}</p>}</div><button type="button" aria-label={likes[comment.key] ? 'Retirar gosto nesta sessão' : 'Gostar nesta sessão'} aria-pressed={Boolean(likes[comment.key])} onClick={() => setLikes((previous) => ({ ...previous, [comment.key]: !previous[comment.key] }))} className="p-1 text-slate-400 hover:text-rose-500"><Heart size={15} className={likes[comment.key] ? 'fill-rose-500 text-rose-500' : ''} /></button></div><p className="mt-1 whitespace-pre-wrap break-words text-xs leading-relaxed text-slate-700">{comment.text}</p></div>
+        </article>)}
       </div>
+      <div className="border-t border-slate-100 bg-white p-3"><p className="mb-2 text-[10px] leading-relaxed text-slate-500">O que escreveres aqui fica apenas nesta sessão e não é publicado para outras pessoas.</p><form onSubmit={handleAddComment} className="flex items-center gap-2"><input aria-label="Escrever comentário nesta sessão" type="text" maxLength={2000} placeholder="Escreve um comentário…" value={newComment} onChange={(event) => setNewComment(event.target.value)} className="min-w-0 flex-1 rounded-full border border-slate-200 bg-slate-100 px-3 py-2 text-xs text-slate-900 outline-none focus:border-[#00aff0]" /><button aria-label="Adicionar nesta sessão" type="submit" disabled={!newComment.trim()} className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[#00aff0] text-white hover:bg-[#009ed9] disabled:opacity-40"><Send size={16} /></button></form></div>
     </div>
-  );
+  </div>;
 };

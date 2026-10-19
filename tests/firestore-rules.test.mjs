@@ -123,6 +123,50 @@ test('users can maintain only their own limited profile; self-escalation is deni
   await assertSucceeds(setDoc(doc(anonymousContext().firestore(), 'users', 'guest'), ownProfile('guest', true)));
 });
 
+test('only an administrator can manage creator comments and button destinations', async () => {
+  const managedComments = [{ id: 'example-1', name: 'Exemplo', text: 'Texto demonstrativo', time: 'Hoje', kind: 'demonstration' }];
+  const actionLinks = {
+    subscribe: 'https://checkout.example/plan', message: '/mensagens?creator=sandra', tip: '',
+    signup: '/registo', login: '/', explore: '/perfis', notifications: '/avisos',
+  };
+  const patch = { managedComments, actionLinks, updatedAt: Timestamp.now() };
+  const admin = adminContext().firestore();
+  await assertSucceeds(setDoc(doc(admin, 'creators', 'configured'), { ...creator('configured'), ...patch }));
+  await assertSucceeds(updateDoc(doc(admin, 'creators', 'sandra'), patch));
+  const published = (await getDoc(doc(visitorContext().firestore(), 'creators', 'sandra'))).data();
+  assert.deepEqual(published.managedComments, managedComments);
+  assert.deepEqual(published.actionLinks, actionLinks);
+  for (const context of [visitorContext(), anonymousContext(), memberContext()]) {
+    await assertFails(updateDoc(doc(context.firestore(), 'creators', 'sandra'), { managedComments: [] }));
+    await assertFails(updateDoc(doc(context.firestore(), 'creators', 'sandra'), { actionLinks: { login: '/alterado' } }));
+  }
+});
+
+test('managed comments enforce list type and the 100-item limit on create and update', async () => {
+  const database = adminContext().firestore();
+  const comments = Array.from({ length: 100 }, (_, index) => ({
+    id: `example-${index}`, name: 'Exemplo', text: 'Texto demonstrativo', time: 'Hoje', kind: 'demonstration',
+  }));
+  await assertSucceeds(updateDoc(doc(database, 'creators', 'sandra'), { managedComments: comments }));
+  for (const managedComments of [{}, 'invalid', [...comments, comments[0]]]) {
+    await assertFails(setDoc(doc(database, 'creators', 'invalid-comments'), { ...creator('invalid-comments'), managedComments }));
+    await assertFails(updateDoc(doc(database, 'creators', 'sandra'), { managedComments }));
+  }
+});
+
+test('button configuration rejects unknown keys, non-strings and unsafe URL schemes', async () => {
+  const database = adminContext().firestore();
+  for (const actionLinks of [
+    [], 'invalid', { extra: '/route' }, { login: 7 }, { login: null },
+    { login: 'javascript:alert(1)' }, { message: '//outside.example' },
+    { subscribe: 'http://checkout.example' }, { tip: 'https://checkout.example/with space' },
+    { login: '/'.padEnd(4097, 'a') },
+  ]) {
+    await assertFails(setDoc(doc(database, 'creators', 'invalid-links'), { ...creator('invalid-links'), actionLinks }));
+    await assertFails(updateDoc(doc(database, 'creators', 'sandra'), { actionLinks }));
+  }
+});
+
 test('Storage allows public media reads and only administrator media writes', async () => {
   const objectPath = 'public/administrator/photo.jpg';
   const adminStorage = adminContext().storage();
@@ -143,3 +187,4 @@ test('Storage rejects executable formats, oversized images and writes outside th
   await assertFails(uploadBytes(ref(storage, 'public/someone-else/photo.jpg'), new Uint8Array([1]), { contentType: 'image/jpeg' }));
   await assertFails(uploadBytes(ref(storage, 'private/photo.jpg'), new Uint8Array([1]), { contentType: 'image/jpeg' }));
 });
+

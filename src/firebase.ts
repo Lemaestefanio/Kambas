@@ -12,6 +12,7 @@ import { getDownloadURL, getStorage, ref, uploadBytes } from 'firebase/storage';
 import firebaseConfig from '../firebase-applet-config.json';
 import type { Creator } from './types';
 import type { SiteSettings } from './cms/types';
+import { optimizeImageFile } from './utils/imageCompressor';
 
 const app = initializeApp(firebaseConfig);
 // This project uses a named database. Never silently switch to (default).
@@ -121,7 +122,10 @@ async function requireAdmin(): Promise<FirebaseUser> {
 }
 
 export function subscribeToCreators(onData: (creators: Creator[]) => void, onError?: (error: Error) => void) {
-  return onSnapshot(collection(db, creatorsCollection), (snapshot) => {
+  let receivedServerSnapshot = false;
+  return onSnapshot(collection(db, creatorsCollection), { includeMetadataChanges: true }, (snapshot) => {
+    if (snapshot.metadata.fromCache && !receivedServerSnapshot) return;
+    receivedServerSnapshot = true;
     onData(snapshot.docs.map((item) => ({ ...item.data(), id: item.id }) as Creator));
   }, (error) => onError?.(error));
 }
@@ -130,7 +134,10 @@ export function subscribeToSiteSettings(
   onData: (settings: Partial<SiteSettings> | null) => void,
   onError?: (error: Error) => void,
 ) {
-  return onSnapshot(publicSettingsRef, (snapshot) => {
+  let receivedServerSnapshot = false;
+  return onSnapshot(publicSettingsRef, { includeMetadataChanges: true }, (snapshot) => {
+    if (snapshot.metadata.fromCache && !receivedServerSnapshot) return;
+    receivedServerSnapshot = true;
     onData(snapshot.exists() ? snapshot.data() as Partial<SiteSettings> : null);
   }, (error) => onError?.(error));
 }
@@ -213,9 +220,15 @@ export async function uploadAdminMedia(file: File): Promise<string> {
   if (file.size === 0 || file.size > maxSize) {
     throw new Error(`O limite é ${maxSize / 1024 / 1024} MB por ficheiro.`);
   }
-  const safeName = file.name.replace(/[^A-Za-z0-9._-]/g, '_').slice(-100) || 'media';
+  const upload = await optimizeImageFile(file);
+  const safeName = upload.name.replace(/[^A-Za-z0-9._-]/g, '_').slice(-100) || 'media';
   const object = ref(storage, `public/${user.uid}/${crypto.randomUUID()}-${safeName}`);
-  await uploadBytes(object, file, { contentType: file.type, customMetadata: { uploadedBy: user.uid } });
+  await uploadBytes(object, upload, {
+    contentType: upload.type,
+    // Each upload gets a new UUID; immutable URLs never serve replaced media.
+    cacheControl: 'public,max-age=31536000,immutable',
+    customMetadata: { uploadedBy: user.uid },
+  });
   return getDownloadURL(object);
 }
 
@@ -261,4 +274,5 @@ export function onAdminAuthChange(callback: (isAdmin: boolean, user: FirebaseUse
   });
   return () => { active = false; unsubscribe(); };
 }
+
 
