@@ -28,6 +28,8 @@ jobs:
           bun install --frozen-lockfile
       - name: Check migration logic without credentials or network
         run: node --test scripts/legacy-media.test.mjs
+      - name: Preserve creation dates when saving profiles
+        run: bun test tests/creator-save.test.ts
       - name: Check application types
         run: bun run lint
       - name: Build production bundle

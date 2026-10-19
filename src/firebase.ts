@@ -137,8 +137,19 @@ export function subscribeToSiteSettings(
 
 export async function saveCreatorToFirestore(creator: Creator): Promise<boolean> {
   await requireAdmin();
-  // Full replacement also persists removed optional fields. Resolve only after server acknowledgement.
-  await setDoc(doc(db, creatorsCollection, creator.id), creatorDocument(creator));
+  const reference = doc(db, creatorsCollection, creator.id);
+  const content = creatorDocument(creator);
+  await runTransaction(db, async (transaction) => {
+    const existing = await transaction.get(reference);
+    // The creation date belongs to the stored document, never to a form draft.
+    // Reading inside the transaction also preserves the latest value on a retry.
+    const createdAt = existing.exists() ? existing.get('createdAt') : undefined;
+    // Full replacement still persists removed optional fields.
+    transaction.set(reference, {
+      ...content,
+      createdAt: createdAt === undefined ? serverTimestamp() : createdAt,
+    });
+  });
   return true;
 }
 
@@ -250,3 +261,4 @@ export function onAdminAuthChange(callback: (isAdmin: boolean, user: FirebaseUse
   });
   return () => { active = false; unsubscribe(); };
 }
+
