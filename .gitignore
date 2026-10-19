@@ -6,3 +6,8 @@ coverage/
 *.log
 .env*
 !.env.example
+
+# Private Firebase migration snapshots and operator credentials
+kambas-private-backups/
+**/kambas-private-backups/
+*-service-account*.json

@@ -26,6 +26,8 @@ jobs:
         run: |
           npm install --global bun@1.4.3
           bun install --frozen-lockfile
+      - name: Check migration logic without credentials or network
+        run: node --test scripts/legacy-media.test.mjs
       - name: Check application types
         run: bun run lint
       - name: Build production bundle
