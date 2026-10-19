@@ -3,7 +3,7 @@
  * Keeps resolution high (up to 1200px) with JPEG quality 0.82,
  * reducing files from 5-10MB down to ~120-250KB.
  */
-export async function compressImageFile(file: File, maxDimension = 1200, quality = 0.82): Promise<string> {
+export async function compressImageFile(file: File, maxDimension = 850, quality = 0.78): Promise<string> {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
     reader.onload = (readerEvent) => {

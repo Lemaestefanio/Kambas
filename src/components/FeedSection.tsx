@@ -1,6 +1,111 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Heart, MessageCircle, Bookmark, MoreHorizontal, Lock, Volume2, VolumeX, Gift, CheckCircle2, Share2 } from 'lucide-react';
-import { Creator } from '../types';
+import { Creator, CreatorPost } from '../types';
+import { getMediaUrl } from '../utils/mediaStorage';
+
+interface FeedPostMediaProps {
+  post: CreatorPost;
+  creatorBanner: string;
+  isMuted: boolean;
+  onUnlockClick: () => void;
+  onToggleMute: (e: React.MouseEvent) => void;
+}
+
+const FeedPostMedia: React.FC<FeedPostMediaProps> = ({
+  post,
+  creatorBanner,
+  isMuted,
+  onUnlockClick,
+  onToggleMute,
+}) => {
+  const [resolvedVideo, setResolvedVideo] = useState(post.video || '');
+  const [resolvedImage, setResolvedImage] = useState(post.image || creatorBanner);
+
+  useEffect(() => {
+    let active = true;
+    if (post.video) {
+      getMediaUrl(post.video).then((url) => {
+        if (active) setResolvedVideo(url);
+      });
+    }
+    if (post.image) {
+      getMediaUrl(post.image).then((url) => {
+        if (active) setResolvedImage(url);
+      });
+    } else {
+      getMediaUrl(creatorBanner).then((url) => {
+        if (active) setResolvedImage(url);
+      });
+    }
+    return () => {
+      active = false;
+    };
+  }, [post.video, post.image, creatorBanner]);
+
+  return (
+    <div
+      onClick={post.unlocked ? undefined : onUnlockClick}
+      className={`relative aspect-[4/5] bg-slate-100 overflow-hidden select-none ${
+        post.unlocked ? '' : 'cursor-pointer group'
+      }`}
+    >
+      {post.video ? (
+        <video
+          src={resolvedVideo || post.video}
+          autoPlay={post.unlocked}
+          loop
+          muted={isMuted}
+          playsInline
+          draggable={false}
+          preload={post.unlocked ? 'metadata' : 'none'}
+          className={`w-full h-full object-cover ${post.unlocked ? '' : 'scale-110'}`}
+          style={post.unlocked ? undefined : { filter: 'blur(12px) brightness(0.72)' }}
+        />
+      ) : (
+        <img
+          src={resolvedImage || post.image || creatorBanner}
+          alt="Conteúdo exclusivo"
+          draggable={false}
+          loading="lazy"
+          decoding="async"
+          className={`w-full h-full object-cover ${post.unlocked ? '' : 'scale-110'}`}
+          style={post.unlocked ? undefined : { filter: 'blur(12px) brightness(0.72)' }}
+        />
+      )}
+
+      {/* Locked frosted glass overlay */}
+      {!post.unlocked && (
+        <>
+          <div className="absolute inset-0 bg-black/35 backdrop-blur-[2px]" />
+          <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 p-4 text-center z-10">
+            <div className="w-14 h-14 rounded-full bg-white/95 backdrop-blur-xl flex items-center justify-center shadow-2xl border border-white/40 group-hover:scale-105 transition-transform text-[#00aff0]">
+              <Lock className="h-6 w-6" />
+            </div>
+            <div className="space-y-1">
+              <span className="inline-block text-xs font-bold text-white bg-black/75 backdrop-blur-md px-3.5 py-1.5 rounded-full tracking-wide shadow-md">
+                Conteúdo Exclusivo VIP
+              </span>
+              <p className="text-[11px] text-white/80 max-w-[240px]">
+                Toque para desbloquear fotos em alta definição e vídeos sem censura
+              </p>
+            </div>
+          </div>
+        </>
+      )}
+
+      {/* Mute button for unlocked video */}
+      {post.unlocked && post.video && (
+        <button
+          onClick={onToggleMute}
+          className="absolute bottom-3 right-3 w-8 h-8 rounded-full bg-black/60 text-white flex items-center justify-center hover:bg-black/80 transition-colors"
+          aria-label="Ativar/desativar som"
+        >
+          {isMuted ? <VolumeX className="w-4 h-4" /> : <Volume2 className="w-4 h-4" />}
+        </button>
+      )}
+    </div>
+  );
+};
 
 interface FeedSectionProps {
   creator: Creator;
@@ -86,70 +191,16 @@ export const FeedSection: React.FC<FeedSectionProps> = ({
             </p>
 
             {/* Media Box */}
-            <div
-              onClick={post.unlocked ? undefined : onUnlockClick}
-              className={`relative aspect-[4/5] bg-slate-100 overflow-hidden select-none ${
-                post.unlocked ? '' : 'cursor-pointer group'
-              }`}
-            >
-              {post.video ? (
-                <video
-                  src={post.video}
-                  autoPlay={post.unlocked}
-                  loop
-                  muted={isMuted}
-                  playsInline
-                  draggable={false}
-                  preload={post.unlocked ? 'metadata' : 'none'}
-                  className={`w-full h-full object-cover ${post.unlocked ? '' : 'scale-110'}`}
-                  style={post.unlocked ? undefined : { filter: 'blur(12px) brightness(0.72)' }}
-                />
-              ) : (
-                <img
-                  src={post.image || creator.banner}
-                  alt="Conteúdo exclusivo"
-                  draggable={false}
-                  loading="lazy"
-                  decoding="async"
-                  className={`w-full h-full object-cover ${post.unlocked ? '' : 'scale-110'}`}
-                  style={post.unlocked ? undefined : { filter: 'blur(12px) brightness(0.72)' }}
-                />
-              )}
-
-              {/* Locked frosted glass overlay */}
-              {!post.unlocked && (
-                <>
-                  <div className="absolute inset-0 bg-black/35 backdrop-blur-[2px]" />
-                  <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 p-4 text-center z-10">
-                    <div className="w-14 h-14 rounded-full bg-white/95 backdrop-blur-xl flex items-center justify-center shadow-2xl border border-white/40 group-hover:scale-105 transition-transform text-[#00aff0]">
-                      <Lock className="h-6 w-6" />
-                    </div>
-                    <div className="space-y-1">
-                      <span className="inline-block text-xs font-bold text-white bg-black/75 backdrop-blur-md px-3.5 py-1.5 rounded-full tracking-wide shadow-md">
-                        Conteúdo Exclusivo VIP
-                      </span>
-                      <p className="text-[11px] text-white/80 max-w-[240px]">
-                        Toque para desbloquear fotos em alta definição e vídeos sem censura
-                      </p>
-                    </div>
-                  </div>
-                </>
-              )}
-
-              {/* Mute button for unlocked video */}
-              {post.unlocked && (
-                <button
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    setIsMuted(!isMuted);
-                  }}
-                  className="absolute bottom-3 right-3 w-8 h-8 rounded-full bg-black/60 text-white flex items-center justify-center hover:bg-black/80 transition-colors"
-                  aria-label="Ativar/desativar som"
-                >
-                  {isMuted ? <VolumeX className="w-4 h-4" /> : <Volume2 className="w-4 h-4" />}
-                </button>
-              )}
-            </div>
+            <FeedPostMedia
+              post={post}
+              creatorBanner={creator.banner}
+              isMuted={isMuted}
+              onUnlockClick={onUnlockClick}
+              onToggleMute={(e) => {
+                e.stopPropagation();
+                setIsMuted(!isMuted);
+              }}
+            />
 
             {/* Post Actions Bar */}
             <div className="flex items-center justify-between px-4 py-2.5 border-t border-slate-100">

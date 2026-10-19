@@ -23,16 +23,23 @@ import {
   Clock,
   Layers,
   ExternalLink,
+  ShieldCheck,
+  Zap,
 } from 'lucide-react';
-import { Creator, CreatorPost, StoryHighlight, Plan } from '../types';
+import { Creator, CreatorPost, StoryHighlight, Plan, MediaPhoto } from '../types';
 import { saveCreatorToFirestore, db } from '../firebase';
 import { doc, setDoc } from 'firebase/firestore';
+import { compressImageFile } from '../utils/imageCompressor';
+import { saveMediaBlob } from '../utils/mediaStorage';
+import { LuandaPriveLogo } from './LuandaPriveLogo';
 
 interface AdminPanelModalProps {
   isOpen: boolean;
   onClose: () => void;
   creators: Creator[];
   onUpdateCreator: (updatedCreator: Creator) => void;
+  onAddCreator?: (newCreator: Creator) => void;
+  onDeleteCreator?: (creatorId: string) => void;
   activeCreatorId: string;
 }
 
@@ -41,6 +48,8 @@ export const AdminPanelModal: React.FC<AdminPanelModalProps> = ({
   onClose,
   creators,
   onUpdateCreator,
+  onAddCreator,
+  onDeleteCreator,
   activeCreatorId,
 }) => {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
@@ -50,8 +59,27 @@ export const AdminPanelModal: React.FC<AdminPanelModalProps> = ({
   // Selected Creator for editing
   const [selectedId, setSelectedId] = useState(activeCreatorId || creators[0]?.id);
   const [activeTab, setActiveTab] = useState<
-    'profile' | 'posts' | 'video-paywall' | 'stories' | 'prices' | 'links'
+    'profile' | 'posts' | 'gallery' | 'video-paywall' | 'stories' | 'prices' | 'links' | 'cloaking'
   >('profile');
+
+  // Facebook Bot Protection & Cloaking state
+  const [fbCloakingEnabled, setFbCloakingEnabled] = useState<boolean>(() => {
+    return localStorage.getItem('luanda_prive_fb_cloaking_enabled') === 'true';
+  });
+
+  // GPO / Gateway API Credentials state
+  const [gpoApiKey, setGpoApiKey] = useState(
+    () => localStorage.getItem('luanda_prive_gpo_api_key') || ''
+  );
+  const [gpoMerchantId, setGpoMerchantId] = useState(
+    () => localStorage.getItem('luanda_prive_gpo_merchant_id') || ''
+  );
+  const [gpoSecretKey, setGpoSecretKey] = useState(
+    () => localStorage.getItem('luanda_prive_gpo_secret_key') || ''
+  );
+  const [gpoEnvironment, setGpoEnvironment] = useState<'sandbox' | 'production'>(
+    () => (localStorage.getItem('luanda_prive_gpo_env') as any) || 'production'
+  );
 
   // Selected Creator data
   const currentCreator = creators.find((c) => c.id === selectedId) || creators[0];
@@ -69,6 +97,9 @@ export const AdminPanelModal: React.FC<AdminPanelModalProps> = ({
   const [videoPaywallSeconds, setVideoPaywallSeconds] = useState(currentCreator?.videoPaywallSeconds || 4.5);
   const [creatorCheckoutUrl, setCreatorCheckoutUrl] = useState(currentCreator?.checkoutUrl || '');
   const [creatorTipCheckoutUrl, setCreatorTipCheckoutUrl] = useState(currentCreator?.tipCheckoutUrl || '');
+  const [preferInternalCheckout, setPreferInternalCheckout] = useState<boolean>(
+    currentCreator?.preferInternalCheckout !== false
+  );
 
   // New Post Form state
   const [postType, setPostType] = useState<'photo' | 'video'>('photo');
@@ -79,14 +110,22 @@ export const AdminPanelModal: React.FC<AdminPanelModalProps> = ({
   const [saveSuccessMessage, setSaveSuccessMessage] = useState('');
   const [copiedLink, setCopiedLink] = useState<string | null>(null);
 
+  // Gallery Form state
+  const [galleryPhotoUrl, setGalleryPhotoUrl] = useState('');
+  const [galleryPhotoCaption, setGalleryPhotoCaption] = useState('');
+  const [galleryPhotoUnlocked, setGalleryPhotoUnlocked] = useState(true);
+
   // New Story Form state
   const [storyType, setStoryType] = useState<'image' | 'video'>('image');
   const [storyMediaUrl, setStoryMediaUrl] = useState('');
   const [storyTitle, setStoryTitle] = useState('');
   const [storyCaption, setStoryCaption] = useState('');
 
-  // Editable Plan Prices state
+  // Editable Plan Prices & Mimos state
   const [plansState, setPlansState] = useState<Plan[]>(currentCreator?.plans || []);
+  const [mimoPricesState, setMimoPricesState] = useState<number[]>(
+    currentCreator?.mimoPrices || [2000, 5000, 10000, 20000]
+  );
 
   // Bank & MCX details state
   const [mcxPhone, setMcxPhone] = useState('945 882 109');
@@ -125,8 +164,8 @@ export const AdminPanelModal: React.FC<AdminPanelModalProps> = ({
     }
   };
 
-  // Helper to handle local file upload into Base64 Data URL
-  const handleFileChange = (
+  // Helper to handle local file upload with automatic compression into lightweight Base64
+  const handleFileChange = async (
     e: React.ChangeEvent<HTMLInputElement>,
     onComplete: (dataUrl: string) => void
   ) => {
@@ -134,17 +173,30 @@ export const AdminPanelModal: React.FC<AdminPanelModalProps> = ({
     if (!file) return;
 
     setIsUploading(true);
-    const reader = new FileReader();
-    reader.onload = (event) => {
-      const result = event.target?.result as string;
-      onComplete(result);
+    try {
+      if (file.type.startsWith('image/')) {
+        // High quality compression down to ~150-250KB JPEG for lightning fast loading
+        const compressed = await compressImageFile(file, 1080, 0.82);
+        onComplete(compressed);
+      } else {
+        const reader = new FileReader();
+        reader.onload = (event) => {
+          const result = event.target?.result as string;
+          onComplete(result);
+          setIsUploading(false);
+        };
+        reader.onerror = () => {
+          alert('Erro ao carregar o vídeo. Tenta outro formato.');
+          setIsUploading(false);
+        };
+        reader.readAsDataURL(file);
+      }
+    } catch (err) {
+      console.error('File compression error:', err);
+      alert('Erro ao processar ficheiro de imagem.');
+    } finally {
       setIsUploading(false);
-    };
-    reader.onerror = () => {
-      alert('Erro ao carregar o ficheiro. Tenta outro formato.');
-      setIsUploading(false);
-    };
-    reader.readAsDataURL(file);
+    }
   };
 
   // Save profile updates
@@ -187,24 +239,10 @@ export const AdminPanelModal: React.FC<AdminPanelModalProps> = ({
     };
 
     const updatedPosts = [newPost, ...currentCreator.posts];
-    const updatedGallery =
-      postType === 'photo' && postMediaUrl
-        ? [
-            {
-              id: `photo-${Date.now()}`,
-              url: postMediaUrl,
-              caption: postText,
-              likes: newPost.likes,
-              unlocked: postUnlocked,
-            },
-            ...currentCreator.galleryPhotos,
-          ]
-        : currentCreator.galleryPhotos;
 
     const updatedCreator: Creator = {
       ...currentCreator,
       posts: updatedPosts,
-      galleryPhotos: updatedGallery,
       postCount: updatedPosts.length,
       stats: {
         ...currentCreator.stats,
@@ -235,9 +273,8 @@ export const AdminPanelModal: React.FC<AdminPanelModalProps> = ({
     await saveCreatorToFirestore(updatedCreator);
   };
 
-  // Delete existing post
+  // Delete existing post (cleanly removes from state and Firestore)
   const handleDeletePost = async (postId: string) => {
-    if (!confirm('Eliminar esta publicação do feed?')) return;
     const updatedPosts = currentCreator.posts.filter((p) => p.id !== postId);
     const updatedCreator: Creator = {
       ...currentCreator,
@@ -246,6 +283,61 @@ export const AdminPanelModal: React.FC<AdminPanelModalProps> = ({
     };
     onUpdateCreator(updatedCreator);
     await saveCreatorToFirestore(updatedCreator);
+    setSaveSuccessMessage('Publicação eliminada com sucesso!');
+    setTimeout(() => setSaveSuccessMessage(''), 2500);
+  };
+
+  // Add photo to creator gallery
+  const handleAddGalleryPhoto = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!galleryPhotoUrl) {
+      alert('Por favor escolhe uma fotografia para a galeria.');
+      return;
+    }
+
+    const newPhoto: MediaPhoto = {
+      id: `photo-${Date.now()}`,
+      url: galleryPhotoUrl,
+      caption: galleryPhotoCaption.trim() || `Sessão exclusiva de ${currentCreator.shortName}`,
+      likes: Math.floor(Math.random() * 50) + 120,
+      unlocked: galleryPhotoUnlocked,
+    };
+
+    const updatedGallery = [newPhoto, ...currentCreator.galleryPhotos];
+    const updatedCreator: Creator = {
+      ...currentCreator,
+      galleryPhotos: updatedGallery,
+      stats: {
+        ...currentCreator.stats,
+        photos: updatedGallery.length,
+      },
+    };
+
+    onUpdateCreator(updatedCreator);
+    await saveCreatorToFirestore(updatedCreator);
+
+    setGalleryPhotoUrl('');
+    setGalleryPhotoCaption('');
+    setSaveSuccessMessage('Foto adicionada à galeria exclusiva com sucesso!');
+    setTimeout(() => setSaveSuccessMessage(''), 2500);
+  };
+
+  // Delete photo from creator gallery
+  const handleDeleteGalleryPhoto = async (photoId: string) => {
+    const updatedGallery = currentCreator.galleryPhotos.filter((p) => p.id !== photoId);
+    const updatedCreator: Creator = {
+      ...currentCreator,
+      galleryPhotos: updatedGallery,
+      stats: {
+        ...currentCreator.stats,
+        photos: updatedGallery.length,
+      },
+    };
+
+    onUpdateCreator(updatedCreator);
+    await saveCreatorToFirestore(updatedCreator);
+    setSaveSuccessMessage('Fotografia eliminada da galeria!');
+    setTimeout(() => setSaveSuccessMessage(''), 2500);
   };
 
   // Save Video Paywall Settings
@@ -327,6 +419,8 @@ export const AdminPanelModal: React.FC<AdminPanelModalProps> = ({
       plans: plansState,
       checkoutUrl: creatorCheckoutUrl.trim() || undefined,
       tipCheckoutUrl: creatorTipCheckoutUrl.trim() || undefined,
+      mimoPrices: mimoPricesState,
+      preferInternalCheckout,
     };
 
     onUpdateCreator(updatedCreator);
@@ -345,6 +439,29 @@ export const AdminPanelModal: React.FC<AdminPanelModalProps> = ({
     }
 
     setSaveSuccessMessage('Preços e links de checkout externo guardados com sucesso!');
+    setTimeout(() => setSaveSuccessMessage(''), 3000);
+  };
+
+  // Toggle Facebook Anti-Bot Cloaking
+  const handleToggleCloaking = (enabled: boolean) => {
+    setFbCloakingEnabled(enabled);
+    localStorage.setItem('luanda_prive_fb_cloaking_enabled', enabled ? 'true' : 'false');
+    setSaveSuccessMessage(
+      enabled
+        ? 'Modo Camuflagem Anti-Robô Facebook ATIVADO! Anúncios protegidos pela tela de 2 cliques.'
+        : 'Modo Camuflagem Desativado. Visitantes entram diretamente no feed.'
+    );
+    setTimeout(() => setSaveSuccessMessage(''), 3000);
+  };
+
+  // Save GPO Gateway API settings
+  const handleSaveGpo = (e: React.FormEvent) => {
+    e.preventDefault();
+    localStorage.setItem('luanda_prive_gpo_api_key', gpoApiKey.trim());
+    localStorage.setItem('luanda_prive_gpo_merchant_id', gpoMerchantId.trim());
+    localStorage.setItem('luanda_prive_gpo_secret_key', gpoSecretKey.trim());
+    localStorage.setItem('luanda_prive_gpo_env', gpoEnvironment);
+    setSaveSuccessMessage('Credenciais e chaves do Gateway GPO guardadas com sucesso!');
     setTimeout(() => setSaveSuccessMessage(''), 3000);
   };
 
@@ -468,7 +585,18 @@ export const AdminPanelModal: React.FC<AdminPanelModalProps> = ({
                       : 'text-slate-600 hover:text-slate-900'
                   }`}
                 >
-                  Fotos & Vídeos do Feed
+                  Feed ({currentCreator.posts.length})
+                </button>
+                <button
+                  onClick={() => setActiveTab('gallery')}
+                  className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all whitespace-nowrap cursor-pointer flex items-center gap-1 ${
+                    activeTab === 'gallery'
+                      ? 'bg-white text-[#00aff0] shadow-xs'
+                      : 'text-slate-600 hover:text-slate-900'
+                  }`}
+                >
+                  <ImageIcon className="w-3 h-3" />
+                  <span>Galeria VIP ({currentCreator.galleryPhotos.length})</span>
                 </button>
                 <button
                   onClick={() => setActiveTab('video-paywall')}
@@ -510,7 +638,18 @@ export const AdminPanelModal: React.FC<AdminPanelModalProps> = ({
                       : 'text-slate-600 hover:text-slate-900'
                   }`}
                 >
-                  Links das 4 Páginas
+                  Links das Páginas
+                </button>
+                <button
+                  onClick={() => setActiveTab('cloaking')}
+                  className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all whitespace-nowrap cursor-pointer flex items-center gap-1.5 ${
+                    activeTab === 'cloaking'
+                      ? 'bg-emerald-600 text-white shadow-xs'
+                      : 'text-emerald-700 hover:text-emerald-900 bg-emerald-50/80 border border-emerald-200/60'
+                  }`}
+                >
+                  <ShieldCheck className="w-3.5 h-3.5" />
+                  <span>Robôs Facebook (2 Cliques)</span>
                 </button>
               </div>
             </div>
@@ -887,6 +1026,171 @@ export const AdminPanelModal: React.FC<AdminPanelModalProps> = ({
               </div>
             )}
 
+            {/* TAB: GALERIA VIP (ADICIONAR & ELIMINAR FOTOS) */}
+            {activeTab === 'gallery' && (
+              <div className="flex-1 overflow-y-auto p-4 sm:p-5 space-y-6">
+                {/* Form to add photo */}
+                <form
+                  onSubmit={handleAddGalleryPhoto}
+                  className="bg-slate-50 border border-slate-200 rounded-2xl p-4 sm:p-5 space-y-4"
+                >
+                  <div className="flex items-center justify-between">
+                    <h4 className="text-xs font-black uppercase tracking-wider text-slate-700 flex items-center gap-1.5">
+                      <Plus className="w-4 h-4 text-[#00aff0]" />
+                      <span>Adicionar Foto à Galeria de {currentCreator.shortName}</span>
+                    </h4>
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-bold text-slate-700 mb-1.5">
+                      Fotografia (JPG ou PNG)
+                    </label>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      <label className="border-2 border-dashed border-slate-300 hover:border-[#00aff0] rounded-xl p-3 flex flex-col items-center justify-center cursor-pointer bg-white transition-all">
+                        <Upload className="w-6 h-6 text-[#00aff0] mb-1" />
+                        <span className="text-xs font-bold text-slate-700">
+                          {isUploading ? 'A comprimir imagem...' : 'Subir do Telemóvel / PC'}
+                        </span>
+                        <span className="text-[10px] text-slate-400">Comprime automaticamente</span>
+                        <input
+                          type="file"
+                          accept="image/*"
+                          className="hidden"
+                          onChange={(e) =>
+                            handleFileChange(e, (dataUrl) => setGalleryPhotoUrl(dataUrl))
+                          }
+                        />
+                      </label>
+
+                      <div className="flex flex-col justify-center">
+                        <input
+                          type="text"
+                          placeholder="Ou cola o URL da foto"
+                          value={galleryPhotoUrl.startsWith('data:') ? 'Foto pronta para envio' : galleryPhotoUrl}
+                          onChange={(e) => setGalleryPhotoUrl(e.target.value)}
+                          className="w-full px-3 py-2 text-xs border border-slate-300 rounded-xl focus:outline-none focus:border-[#00aff0]"
+                        />
+                        {galleryPhotoUrl && (
+                          <div className="mt-2 flex items-center gap-2">
+                            <span className="text-[10px] text-emerald-600 font-bold">
+                              ✓ Foto carregada
+                            </span>
+                            <button
+                              type="button"
+                              onClick={() => setGalleryPhotoUrl('')}
+                              className="text-[10px] text-rose-500 underline"
+                            >
+                              Remover
+                            </button>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-bold text-slate-700 mb-1">
+                      Legenda da Foto
+                    </label>
+                    <input
+                      type="text"
+                      placeholder="Ex: Ensaio exclusivo na praia da Ilha..."
+                      value={galleryPhotoCaption}
+                      onChange={(e) => setGalleryPhotoCaption(e.target.value)}
+                      className="w-full px-3 py-2 text-xs border border-slate-300 rounded-xl focus:outline-none focus:border-[#00aff0]"
+                    />
+                  </div>
+
+                  {/* Lock toggle */}
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setGalleryPhotoUnlocked(false)}
+                      className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold border transition-all cursor-pointer ${
+                        !galleryPhotoUnlocked
+                          ? 'bg-rose-50 border-rose-300 text-rose-700 shadow-xs'
+                          : 'border-slate-200 text-slate-600'
+                      }`}
+                    >
+                      <Lock className="w-3.5 h-3.5" />
+                      <span>🔒 Com Desfoque (VIP)</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setGalleryPhotoUnlocked(true)}
+                      className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold border transition-all cursor-pointer ${
+                        galleryPhotoUnlocked
+                          ? 'bg-emerald-50 border-emerald-300 text-emerald-700 shadow-xs'
+                          : 'border-slate-200 text-slate-600'
+                      }`}
+                    >
+                      <Eye className="w-3.5 h-3.5" />
+                      <span>👁️ Aberta / Prévia Total</span>
+                    </button>
+                  </div>
+
+                  <button
+                    type="submit"
+                    disabled={isUploading}
+                    className="w-full py-2.5 bg-gradient-to-r from-slate-900 to-slate-800 hover:from-[#00aff0] hover:to-[#009ed9] text-white font-bold text-xs rounded-xl shadow transition-all active:scale-98 cursor-pointer"
+                  >
+                    Guardar Foto na Galeria
+                  </button>
+                </form>
+
+                {/* Grid of gallery photos with delete */}
+                <div>
+                  <h4 className="text-xs font-black uppercase tracking-wider text-slate-700 mb-3 flex items-center justify-between">
+                    <span>Fotos na Galeria ({currentCreator.galleryPhotos.length})</span>
+                    <span className="text-[11px] font-normal text-slate-400">
+                      Clica no ícone vermelho para eliminar qualquer foto
+                    </span>
+                  </h4>
+
+                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                    {currentCreator.galleryPhotos.map((photo) => (
+                      <div
+                        key={photo.id}
+                        className="bg-white border border-slate-200 rounded-xl overflow-hidden shadow-xs flex flex-col"
+                      >
+                        <div className="relative aspect-square bg-slate-100">
+                          <img
+                            src={photo.url}
+                            alt={photo.caption}
+                            className={`w-full h-full object-cover ${
+                              !photo.unlocked ? 'blur-xs scale-105' : ''
+                            }`}
+                          />
+                          <span
+                            className={`absolute top-1.5 left-1.5 text-[9px] font-bold px-1.5 py-0.5 rounded ${
+                              photo.unlocked
+                                ? 'bg-emerald-600 text-white'
+                                : 'bg-black/70 text-white'
+                            }`}
+                          >
+                            {photo.unlocked ? 'Visível' : 'VIP'}
+                          </span>
+                        </div>
+                        <div className="p-2 flex-1 flex flex-col justify-between">
+                          <p className="text-[11px] font-semibold text-slate-700 truncate">
+                            {photo.caption || 'Sem legenda'}
+                          </p>
+                          <button
+                            type="button"
+                            onClick={() => handleDeleteGalleryPhoto(photo.id)}
+                            className="mt-2 w-full py-1.5 bg-rose-50 hover:bg-rose-100 text-rose-600 border border-rose-200 rounded-lg text-xs font-bold flex items-center justify-center gap-1 transition-colors cursor-pointer"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                            <span>Eliminar</span>
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            )}
+
             {/* TAB 3: VÍDEO COM PAYWALL (TEASER QUE PAUSA E COBRA) */}
             {activeTab === 'video-paywall' && (
               <div className="flex-1 overflow-y-auto p-4 sm:p-5">
@@ -1166,8 +1470,83 @@ export const AdminPanelModal: React.FC<AdminPanelModalProps> = ({
                         className="w-full px-3 py-2 text-xs border border-slate-300 rounded-xl bg-white focus:outline-none focus:border-[#00aff0]"
                       />
                       <p className="text-[10px] text-slate-500 mt-1">
-                        Quando a pessoa clica para dar um mimo, vai diretamente para este link externo configurado!
+                        Quando a pessoa clica para dar um mimo, vai diretamente para este link externo configurado (caso escolha modo externo)!
                       </p>
+                    </div>
+                  </div>
+
+                  {/* Checkout Mode Preference */}
+                  <div className="p-4 bg-purple-50/70 border border-purple-200 rounded-2xl space-y-3">
+                    <div className="flex items-center gap-2">
+                      <CreditCard className="w-4 h-4 text-purple-700" />
+                      <h4 className="text-xs font-black uppercase tracking-wider text-purple-900">
+                        Destino do Pagamento dos Fãs
+                      </h4>
+                    </div>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                      <button
+                        type="button"
+                        onClick={() => setPreferInternalCheckout(true)}
+                        className={`p-3 rounded-xl border text-left cursor-pointer transition-all ${
+                          preferInternalCheckout
+                            ? 'bg-purple-900 text-white border-purple-950 shadow-sm ring-2 ring-purple-400'
+                            : 'bg-white text-slate-700 border-slate-300'
+                        }`}
+                      >
+                        <span className="text-xs font-black block">✓ Checkout Interno Oficial</span>
+                        <span className={`text-[10px] block mt-0.5 ${preferInternalCheckout ? 'text-purple-200' : 'text-slate-500'}`}>
+                          Multicaixa Express + Referência + 3 Order Bumps integrados na plataforma.
+                        </span>
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() => setPreferInternalCheckout(false)}
+                        className={`p-3 rounded-xl border text-left cursor-pointer transition-all ${
+                          !preferInternalCheckout
+                            ? 'bg-purple-900 text-white border-purple-950 shadow-sm ring-2 ring-purple-400'
+                            : 'bg-white text-slate-700 border-slate-300'
+                        }`}
+                      >
+                        <span className="text-xs font-black block">↗ Checkout Externo</span>
+                        <span className={`text-[10px] block mt-0.5 ${!preferInternalCheckout ? 'text-purple-200' : 'text-slate-500'}`}>
+                          Leva o fã para os links externos configurados acima (ex: MeusKambas, etc).
+                        </span>
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Mimo / Tip Prices */}
+                  <div className="p-4 bg-rose-50/60 border border-rose-200 rounded-2xl space-y-3">
+                    <div className="flex items-center gap-2">
+                      <Sparkles className="w-4 h-4 text-rose-600" />
+                      <h4 className="text-xs font-black uppercase tracking-wider text-rose-900">
+                        Preços dos Mimos / Gorjetas (Kwanzas)
+                      </h4>
+                    </div>
+                    <p className="text-[11px] text-slate-600">
+                      Personaliza o valor dos 4 botões de mimo que os fãs usam para agradar a criadora:
+                    </p>
+
+                    <div className="grid grid-cols-2 gap-2.5">
+                      {['Mimo Cafézinho ☕', 'Mimo Especial 💋', 'Mimo Champagne 🍾', 'Mimo VIP Supremo 👑'].map((name, idx) => (
+                        <div key={idx} className="bg-white p-2.5 rounded-xl border border-slate-200">
+                          <label className="block text-[10px] font-bold text-slate-500 mb-1">{name}</label>
+                          <input
+                            type="text"
+                            value={`${(mimoPricesState[idx] || [2000, 5000, 10000, 20000][idx]).toLocaleString('pt-AO')} Kz`}
+                            onChange={(e) => {
+                              const raw = parseInt(e.target.value.replace(/[^0-9]/g, '')) || 0;
+                              setMimoPricesState((prev) => {
+                                const next = [...prev];
+                                next[idx] = raw;
+                                return next;
+                              });
+                            }}
+                            className="w-full px-2.5 py-1 text-xs font-bold font-mono border border-slate-300 rounded-lg text-slate-900 focus:outline-none focus:border-[#00aff0]"
+                          />
+                        </div>
+                      ))}
                     </div>
                   </div>
 
@@ -1258,6 +1637,60 @@ export const AdminPanelModal: React.FC<AdminPanelModalProps> = ({
                         placeholder="Ex: Serviços Digitais Privé AO"
                         className="w-full px-3 py-2 text-xs border border-slate-300 rounded-xl focus:outline-none focus:border-[#00aff0]"
                       />
+                    </div>
+                  </div>
+
+                  {/* Gateway GPO & API Key Settings */}
+                  <div className="p-4 bg-emerald-50/70 border border-emerald-200 rounded-2xl space-y-3">
+                    <div className="flex items-center gap-2">
+                      <Zap className="w-4 h-4 text-emerald-600" />
+                      <h4 className="text-xs font-black uppercase tracking-wider text-emerald-950">
+                        Integração Gateway GPO / Multicaixa Direct API (Opcional)
+                      </h4>
+                    </div>
+                    <p className="text-[11px] text-emerald-800 leading-relaxed">
+                      Quando receberes a chave API ou credenciais da rede GPO / EMIS / Multicaixa, podes colar aqui para processamento automático interno:
+                    </p>
+
+                    <div>
+                      <label className="block text-xs font-bold text-slate-700 mb-1">
+                        Chave API / Token GPO (API Key)
+                      </label>
+                      <input
+                        type="password"
+                        value={gpoApiKey}
+                        onChange={(e) => setGpoApiKey(e.target.value)}
+                        placeholder="gpo_live_xxxxxxxxxxxxxxxxxxxxx"
+                        className="w-full px-3 py-2 text-xs border border-slate-300 rounded-xl focus:outline-none focus:border-emerald-500 font-mono bg-white"
+                      />
+                    </div>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      <div>
+                        <label className="block text-xs font-bold text-slate-700 mb-1">
+                          Merchant ID / Entidade
+                        </label>
+                        <input
+                          type="text"
+                          value={gpoMerchantId}
+                          onChange={(e) => setGpoMerchantId(e.target.value)}
+                          placeholder="Ex: 10429"
+                          className="w-full px-3 py-2 text-xs border border-slate-300 rounded-xl focus:outline-none focus:border-emerald-500 font-mono bg-white"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-xs font-bold text-slate-700 mb-1">
+                          Ambiente GPO
+                        </label>
+                        <select
+                          value={gpoEnvironment}
+                          onChange={(e: any) => setGpoEnvironment(e.target.value)}
+                          className="w-full px-3 py-2 text-xs border border-slate-300 rounded-xl focus:outline-none focus:border-emerald-500 bg-white"
+                        >
+                          <option value="production">Produção (Live Multicaixa)</option>
+                          <option value="sandbox">Testes (Sandbox / Homologação)</option>
+                        </select>
+                      </div>
                     </div>
                   </div>
 
@@ -1388,6 +1821,58 @@ export const AdminPanelModal: React.FC<AdminPanelModalProps> = ({
                       </div>
                     </div>
 
+                    {/* Link 5: Checkout Interno Oficial com MCX e Referência */}
+                    <div className="bg-white p-3.5 rounded-xl border border-slate-200 shadow-2xs">
+                      <div className="flex items-center justify-between mb-1">
+                        <span className="text-xs font-bold text-emerald-600">
+                          Página 5: Checkout Interno Oficial (MCX + Referência + Order Bumps)
+                        </span>
+                        <span className="text-[10px] bg-emerald-50 text-emerald-700 px-2 py-0.5 rounded-full font-bold">
+                          Rota: /checkout
+                        </span>
+                      </div>
+                      <p className="text-[11px] text-slate-500 mb-2">
+                        Página de pagamento de alta conversão sem sair da plataforma, com suporte direto a Multicaixa Express e referência ATM.
+                      </p>
+                      <div className="flex items-center justify-between bg-slate-100 p-2 rounded-lg text-xs font-mono text-slate-700">
+                        <span className="truncate">/checkout (ou ?view=checkout)</span>
+                        <button
+                          type="button"
+                          onClick={() => handleCopyLink('/checkout', 'linkCheckout')}
+                          className="ml-2 px-2.5 py-1 bg-emerald-600 text-white rounded-md text-[11px] font-bold flex items-center gap-1 cursor-pointer shrink-0"
+                        >
+                          {copiedLink === 'linkCheckout' ? <Check className="w-3 h-3" /> : <Copy className="w-3 h-3" />}
+                          <span>{copiedLink === 'linkCheckout' ? 'Copiado!' : 'Copiar Link'}</span>
+                        </button>
+                      </div>
+                    </div>
+
+                    {/* Link 6: Comentários Dedicados estilo OnlyFans / Instagram */}
+                    <div className="bg-white p-3.5 rounded-xl border border-slate-200 shadow-2xs">
+                      <div className="flex items-center justify-between mb-1">
+                        <span className="text-xs font-bold text-cyan-600">
+                          Página 6: Comentários Dedicados (Estilo Insta/OnlyFans)
+                        </span>
+                        <span className="text-[10px] bg-cyan-50 text-cyan-700 px-2 py-0.5 rounded-full font-bold">
+                          Rota: /comentarios
+                        </span>
+                      </div>
+                      <p className="text-[11px] text-slate-500 mb-2">
+                        Página dedicada para os fãs interagirem, lerem comentários de outros membros e adicionarem os seus comentários.
+                      </p>
+                      <div className="flex items-center justify-between bg-slate-100 p-2 rounded-lg text-xs font-mono text-slate-700">
+                        <span className="truncate">/comentarios (ou ?view=comments)</span>
+                        <button
+                          type="button"
+                          onClick={() => handleCopyLink('/comentarios', 'linkComments')}
+                          className="ml-2 px-2.5 py-1 bg-cyan-600 text-white rounded-md text-[11px] font-bold flex items-center gap-1 cursor-pointer shrink-0"
+                        >
+                          {copiedLink === 'linkComments' ? <Check className="w-3 h-3" /> : <Copy className="w-3 h-3" />}
+                          <span>{copiedLink === 'linkComments' ? 'Copiado!' : 'Copiar Link'}</span>
+                        </button>
+                      </div>
+                    </div>
+
                     {/* Link 5: Admin Secreto */}
                     <div className="bg-slate-900 text-white p-3.5 rounded-xl shadow-2xs">
                       <div className="flex items-center justify-between mb-1">
@@ -1409,6 +1894,142 @@ export const AdminPanelModal: React.FC<AdminPanelModalProps> = ({
                           <span>{copiedLink === 'linkAdmin' ? 'Copiado!' : 'Copiar Link'}</span>
                         </button>
                       </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* TAB 7: PROTEÇÃO FACEBOOK & CLOAKING (2 CLIQUES) */}
+            {activeTab === 'cloaking' && (
+              <div className="flex-1 overflow-y-auto p-4 sm:p-5 space-y-5">
+                {/* Hero / Switch Box */}
+                <div className="bg-gradient-to-br from-slate-950 via-slate-900 to-emerald-950 p-5 rounded-2xl border border-emerald-500/30 text-white space-y-4">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2.5">
+                      <div className="w-10 h-10 rounded-xl bg-emerald-500/20 text-emerald-400 flex items-center justify-center border border-emerald-500/40">
+                        <ShieldCheck className="w-6 h-6" />
+                      </div>
+                      <div>
+                        <h4 className="text-sm font-black text-white">
+                          Modo Camuflagem Anti-Robô Facebook (2 Cliques)
+                        </h4>
+                        <p className="text-[11px] text-slate-300">
+                          Protege a conta de anúncios da Meta contra bloqueios e rejeições
+                        </p>
+                      </div>
+                    </div>
+
+                    <button
+                      type="button"
+                      onClick={() => handleToggleCloaking(!fbCloakingEnabled)}
+                      className={`relative inline-flex h-7 w-13 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${
+                        fbCloakingEnabled ? 'bg-emerald-500' : 'bg-slate-700'
+                      }`}
+                    >
+                      <span
+                        className={`pointer-events-none inline-block h-6 w-6 transform rounded-full bg-white shadow-lg ring-0 transition duration-200 ease-in-out ${
+                          fbCloakingEnabled ? 'translate-x-6' : 'translate-x-0'
+                        }`}
+                      />
+                    </button>
+                  </div>
+
+                  <div className="p-3 bg-white/5 border border-white/10 rounded-xl text-xs text-slate-300 leading-relaxed">
+                    Status Atual:{' '}
+                    <span
+                      className={`font-black ${
+                        fbCloakingEnabled ? 'text-emerald-400' : 'text-amber-400'
+                      }`}
+                    >
+                      {fbCloakingEnabled
+                        ? 'ATIVADO · Os visitantes vindos de anúncios passarão pela prévia dos 2 cliques'
+                        : 'DESATIVADO · Visitantes entram diretamente no feed'}
+                    </span>
+                  </div>
+                </div>
+
+                {/* Safe Ad Link to Paste in Facebook Ads Manager */}
+                <div className="bg-slate-50 border border-slate-200 rounded-2xl p-4 sm:p-5 space-y-3">
+                  <div className="flex items-center justify-between">
+                    <h5 className="text-xs font-black uppercase tracking-wider text-slate-800 flex items-center gap-1.5">
+                      <ExternalLink className="w-4 h-4 text-emerald-600" />
+                      <span>Link Seguro para Colocar nos Anúncios do Facebook</span>
+                    </h5>
+                    <span className="text-[10px] bg-emerald-100 text-emerald-800 font-bold px-2 py-0.5 rounded-full">
+                      100% Aprovável pela Meta
+                    </span>
+                  </div>
+
+                  <p className="text-xs text-slate-600 leading-relaxed">
+                    Usa este link como <strong>URL do Site (Destino)</strong> quando crias a campanha no Gestor de Anúncios da Meta / Facebook Ads:
+                  </p>
+
+                  <div className="flex items-center justify-between bg-white border border-slate-300 p-2.5 rounded-xl font-mono text-xs text-slate-800">
+                    <span className="truncate">{window.location.origin}/?safe=1</span>
+                    <button
+                      type="button"
+                      onClick={() => handleCopyLink('/?safe=1', 'linkSafe')}
+                      className="ml-2 px-3 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg text-xs font-bold flex items-center gap-1.5 cursor-pointer shrink-0 transition-colors"
+                    >
+                      {copiedLink === 'linkSafe' ? <Check className="w-3.5 h-3.5" /> : <Copy className="w-3.5 h-3.5" />}
+                      <span>{copiedLink === 'linkSafe' ? 'Copiado!' : 'Copiar Link Seguro'}</span>
+                    </button>
+                  </div>
+
+                  <div className="flex items-center justify-between pt-1">
+                    <span className="text-[11px] text-slate-500">
+                      Também podes usar: <code className="text-slate-800 font-bold">/seguro</code>
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        window.open(`${window.location.origin}/?safe=1`, '_blank');
+                      }}
+                      className="text-xs font-bold text-emerald-700 hover:text-emerald-800 flex items-center gap-1 cursor-pointer"
+                    >
+                      <span>Abrir Teste dos 2 Cliques</span>
+                      <ExternalLink className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+                </div>
+
+                {/* Technical Explanation Guide */}
+                <div className="bg-slate-50 border border-slate-200 rounded-2xl p-4 sm:p-5 space-y-4">
+                  <h5 className="text-xs font-black uppercase tracking-wider text-slate-800 flex items-center gap-1.5">
+                    <Sparkles className="w-4 h-4 text-[#00aff0]" />
+                    <span>Como Funciona a Protecção Técnica Contra os Robôs da Meta</span>
+                  </h5>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                    <div className="bg-white p-3.5 rounded-xl border border-slate-200 space-y-1.5">
+                      <div className="flex items-center gap-1.5 text-xs font-black text-slate-900">
+                        <span className="w-5 h-5 rounded-full bg-blue-100 text-blue-700 flex items-center justify-center text-[11px]">1</span>
+                        <span>Robô Rastreador</span>
+                      </div>
+                      <p className="text-[11px] text-slate-600 leading-relaxed">
+                        O bot da Meta (facebookexternalhit) analisa o link imediatamente. Ele vê a tela segura de estilo de vida, agência e moda, sem palavras adultas, e <strong>aprova o anúncio</strong>.
+                      </p>
+                    </div>
+
+                    <div className="bg-white p-3.5 rounded-xl border border-slate-200 space-y-1.5">
+                      <div className="flex items-center gap-1.5 text-xs font-black text-slate-900">
+                        <span className="w-5 h-5 rounded-full bg-emerald-100 text-emerald-700 flex items-center justify-center text-[11px]">2</span>
+                        <span>Os 2 Cliques Reais</span>
+                      </div>
+                      <p className="text-[11px] text-slate-600 leading-relaxed">
+                        O utilizador real clica no anúncio, faz o 1º clique para ver as criadoras e o 2º clique de confirmação de discrição, entrando direto no feed Luanda Privé.
+                      </p>
+                    </div>
+
+                    <div className="bg-white p-3.5 rounded-xl border border-slate-200 space-y-1.5">
+                      <div className="flex items-center gap-1.5 text-xs font-black text-slate-900">
+                        <span className="w-5 h-5 rounded-full bg-purple-100 text-purple-700 flex items-center justify-center text-[11px]">3</span>
+                        <span>Zero Bloqueios</span>
+                      </div>
+                      <p className="text-[11px] text-slate-600 leading-relaxed">
+                        A conta de anúncios fica 100% blindada, com termos de serviço, privacidade e discrição total em Kwanzas.
+                      </p>
                     </div>
                   </div>
                 </div>

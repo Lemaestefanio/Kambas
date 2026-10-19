@@ -1,7 +1,8 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { CheckCircle2, Star, MessageCircle, Share2, MapPin, Sparkles } from 'lucide-react';
 import { Creator } from '../types';
 import { StoryHighlightsBar } from './StoryHighlightsBar';
+import { getMediaUrl } from '../utils/mediaStorage';
 
 interface ProfileSectionProps {
   creator: Creator;
@@ -21,6 +22,23 @@ export const ProfileSection: React.FC<ProfileSectionProps> = ({
   const [isExpanded, setIsExpanded] = useState(false);
   const [isFavorite, setIsFavorite] = useState(false);
   const [showShareNotification, setShowShareNotification] = useState(false);
+  const [resolvedBanner, setResolvedBanner] = useState(creator.banner);
+  const [resolvedBannerVideo, setResolvedBannerVideo] = useState(creator.bannerVideo || '');
+  const [resolvedAvatar, setResolvedAvatar] = useState(creator.avatar);
+
+  useEffect(() => {
+    let active = true;
+    getMediaUrl(creator.banner).then((u) => active && setResolvedBanner(u));
+    if (creator.bannerVideo) {
+      getMediaUrl(creator.bannerVideo).then((u) => active && setResolvedBannerVideo(u));
+    } else {
+      setResolvedBannerVideo('');
+    }
+    getMediaUrl(creator.avatar).then((u) => active && setResolvedAvatar(u));
+    return () => {
+      active = false;
+    };
+  }, [creator.banner, creator.bannerVideo, creator.avatar]);
 
   const handleShareClick = () => {
     if (onShare) {
@@ -40,16 +58,34 @@ export const ProfileSection: React.FC<ProfileSectionProps> = ({
     }
   };
 
+  const isVideoCover =
+    Boolean(resolvedBannerVideo) ||
+    resolvedBanner.includes('.mp4') ||
+    resolvedBanner.includes('video/');
+
   return (
     <section className="bg-white border-b border-slate-200/80">
-      {/* Cover Banner (Clean edge-to-edge photo without text clutter) */}
+      {/* Cover Banner (Supports Photo or Looping Video Cover) */}
       <div className="relative h-[190px] sm:h-[220px] w-full overflow-hidden bg-slate-200">
-        <img
-          src={creator.banner}
-          alt={`Capa de ${creator.name}`}
-          className="w-full h-full object-cover select-none pointer-events-none"
-          draggable={false}
-        />
+        {isVideoCover ? (
+          <video
+            src={resolvedBannerVideo || resolvedBanner}
+            autoPlay
+            loop
+            muted
+            playsInline
+            className="w-full h-full object-cover select-none pointer-events-none"
+          />
+        ) : (
+          <img
+            src={resolvedBanner}
+            alt={`Capa de ${creator.name}`}
+            loading="lazy"
+            decoding="async"
+            className="w-full h-full object-cover select-none pointer-events-none"
+            draggable={false}
+          />
+        )}
         <div className="absolute inset-0 bg-gradient-to-t from-black/25 via-transparent to-black/10" />
       </div>
 
@@ -61,8 +97,10 @@ export const ProfileSection: React.FC<ProfileSectionProps> = ({
           <div className="relative group">
             <div className="w-[96px] h-[96px] rounded-full border-[4px] border-white overflow-hidden bg-white shadow-lg relative">
               <img
-                src={creator.avatar}
+                src={resolvedAvatar}
                 alt={creator.name}
+                loading="lazy"
+                decoding="async"
                 className="w-full h-full object-cover select-none pointer-events-none"
                 draggable={false}
               />

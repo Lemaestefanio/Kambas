@@ -17,42 +17,34 @@ export const TipModal: React.FC<TipModalProps> = ({
 }) => {
   if (!isOpen) return null;
 
+  const mimos = creator.mimoPrices && creator.mimoPrices.length === 4
+    ? creator.mimoPrices
+    : [2000, 5000, 10000, 20000];
+
   const presetAmounts = [
-    { label: '2.000 Kz', value: 2000, desc: 'Agradecimento rápido' },
-    { label: '5.000 Kz', value: 5000, desc: 'Mimo especial 💋', popular: true },
-    { label: '10.000 Kz', value: 10000, desc: 'Atenção prioritária no WhatsApp 🔥' },
-    { label: '20.000 Kz', value: 20000, desc: 'Mimo VIP exclusivo com chamada' },
+    { label: `${mimos[0].toLocaleString('pt-AO')} Kz`, value: mimos[0], desc: 'Agradecimento rápido' },
+    { label: `${mimos[1].toLocaleString('pt-AO')} Kz`, value: mimos[1], desc: 'Mimo especial 💋', popular: true },
+    { label: `${mimos[2].toLocaleString('pt-AO')} Kz`, value: mimos[2], desc: 'Atenção prioritária no WhatsApp 🔥' },
+    { label: `${mimos[3].toLocaleString('pt-AO')} Kz`, value: mimos[3], desc: 'Mimo VIP exclusivo com chamada' },
   ];
 
-  const [selectedAmount, setSelectedAmount] = useState<number>(5000);
+  const [selectedAmount, setSelectedAmount] = useState<number>(mimos[1]);
   const [message, setMessage] = useState<string>('');
 
   const handleSendTip = () => {
-    if (creator.tipCheckoutUrl && creator.tipCheckoutUrl.startsWith('http')) {
-      window.location.href = creator.tipCheckoutUrl;
-      return;
-    }
+    const mimoIndex = mimos.indexOf(selectedAmount);
+    const specificMimoUrl =
+      creator.mimoCheckoutUrls && creator.mimoCheckoutUrls[mimoIndex]
+        ? creator.mimoCheckoutUrls[mimoIndex]
+        : '';
 
-    // Generate a temporary plan object for checkout
-    const tipPlan: Plan = {
-      id: `tip-${selectedAmount}`,
-      duration: `Gorjeta VIP — ${creator.shortName}`,
-      periodLabel: 'Mimo Especial',
-      price: `${selectedAmount.toLocaleString('pt-AO')} Kz`,
-      rawPrice: selectedAmount,
-      badge: 'Gorjeta Direta',
-      badgeType: 'accent',
-      checkoutUrl: creator.checkoutUrl || 'https://pay.meuskambas.online/checkout/sandra-gomes-chat-privado-30-dias',
-      features: [
-        `Envio de gorjeta direta de ${selectedAmount.toLocaleString('pt-AO')} Kz`,
-        `Mensagem privada para ${creator.shortName}: "${message || 'Mimo para você amor'}"`,
-        'Notificação instantânea para a criadora no WhatsApp',
-        'Pagamento seguro via Multicaixa Express / Iban',
-      ],
-    };
+    const targetUrl =
+      specificMimoUrl ||
+      creator.tipCheckoutUrl ||
+      creator.checkoutUrl ||
+      'https://pay.meuskambas.online/checkout/sandra-gomes-chat-privado-30-dias';
 
-    onProceedToPayment(tipPlan);
-    onClose();
+    window.location.href = targetUrl;
   };
 
   return (
@@ -147,9 +139,13 @@ export const TipModal: React.FC<TipModalProps> = ({
         <div className="p-4 border-t border-slate-100 bg-slate-50">
           <button
             onClick={handleSendTip}
-            className="w-full py-3 px-4 rounded-full bg-[#00aff0] hover:bg-[#009ed9] text-white font-bold text-xs uppercase tracking-wide flex items-center justify-center gap-2 shadow-md transition-all active:scale-[0.98]"
+            className="w-full py-3 px-4 rounded-full bg-[#00aff0] hover:bg-[#009ed9] text-white font-bold text-xs uppercase tracking-wide flex items-center justify-center gap-2 shadow-md transition-all active:scale-[0.98] cursor-pointer"
           >
-            <span>Confirmar {selectedAmount.toLocaleString('pt-AO')} Kz no Multicaixa</span>
+            <span>
+              {creator.customPaymentButtonText
+                ? `${creator.customPaymentButtonText} (${selectedAmount.toLocaleString('pt-AO')} Kz)`
+                : `Confirmar e Pagar ${selectedAmount.toLocaleString('pt-AO')} Kz`}
+            </span>
             <ArrowRight className="w-4 h-4" />
           </button>
         </div>

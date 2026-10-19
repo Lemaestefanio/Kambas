@@ -118,6 +118,8 @@ export const CreatorsDirectoryModal: React.FC<CreatorsDirectoryModalProps> = ({
                 <img
                   src={c.banner}
                   alt={c.name}
+                  loading="lazy"
+                  decoding="async"
                   className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
                 />
                 <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />
@@ -133,6 +135,8 @@ export const CreatorsDirectoryModal: React.FC<CreatorsDirectoryModalProps> = ({
                     <img
                       src={c.avatar}
                       alt={c.name}
+                      loading="lazy"
+                      decoding="async"
                       className="w-12 h-12 rounded-full border-2 border-white object-cover shadow-md"
                     />
                     <span className="absolute bottom-0 right-0 w-3 h-3 rounded-full bg-[#22c55e] border-2 border-white" />

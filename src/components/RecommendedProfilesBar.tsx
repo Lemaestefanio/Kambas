@@ -69,6 +69,8 @@ export const RecommendedProfilesBar: React.FC<RecommendedProfilesBarProps> = ({
                   <img
                     src={c.avatar}
                     alt={c.name}
+                    loading="lazy"
+                    decoding="async"
                     className="w-full h-full object-cover select-none"
                     draggable={false}
                   />

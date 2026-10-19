@@ -24,11 +24,11 @@ export const PlansModal: React.FC<PlansModalProps> = ({
   const activePlan = creator.plans.find((p) => p.id === selectedPlanId) || defaultPlan;
 
   const handleContinue = () => {
-    if (creator.checkoutUrl && creator.checkoutUrl.startsWith('http')) {
-      window.location.href = creator.checkoutUrl;
-      return;
-    }
-    onSelectPlan(activePlan);
+    const targetUrl =
+      activePlan.checkoutUrl ||
+      creator.checkoutUrl ||
+      'https://pay.meuskambas.online/checkout/sandra-gomes-chat-privado-30-dias';
+    window.location.href = targetUrl;
   };
 
   return (
@@ -186,10 +186,14 @@ export const PlansModal: React.FC<PlansModalProps> = ({
         <div className="p-4 border-t border-slate-100 bg-white shadow-lg space-y-2">
           <button
             onClick={handleContinue}
-            className="w-full py-3.5 rounded-full bg-gradient-to-r from-[#00aff0] to-[#0088cc] hover:from-[#009fd9] hover:to-[#007ab8] text-white font-bold text-sm uppercase tracking-wide transition-all shadow-lg shadow-[#00aff0]/30 active:scale-[0.98] flex items-center justify-center gap-2"
+            className="w-full py-3.5 rounded-full bg-gradient-to-r from-[#00aff0] to-[#0088cc] hover:from-[#009fd9] hover:to-[#007ab8] text-white font-bold text-sm uppercase tracking-wide transition-all shadow-lg shadow-[#00aff0]/30 active:scale-[0.98] flex items-center justify-center gap-2 cursor-pointer"
           >
             <Lock className="w-4 h-4" />
-            <span>Desbloquear com {activePlan.duration} ({activePlan.price})</span>
+            <span>
+              {creator.customPaymentButtonText
+                ? `${creator.customPaymentButtonText} (${activePlan.price})`
+                : `Confirmar e Pagar ${activePlan.duration} (${activePlan.price})`}
+            </span>
             <ChevronRight className="w-4 h-4" />
           </button>
 

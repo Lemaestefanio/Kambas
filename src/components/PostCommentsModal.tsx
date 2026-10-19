@@ -6,7 +6,8 @@ interface Comment {
   id: string;
   author: string;
   handle: string;
-  avatar: string;
+  isCreator?: boolean;
+  isVip?: boolean;
   text: string;
   time: string;
   likes: number;
@@ -31,39 +32,52 @@ export const PostCommentsModal: React.FC<PostCommentsModalProps> = ({
   const [comments, setComments] = useState<Comment[]>([
     {
       id: 'c1',
-      author: 'Mauro Sebastião',
-      handle: '@mauro_seb',
-      avatar: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=120&auto=format&fit=crop&q=80',
-      text: 'Sandra você é uma tentação de mulher! Já renovei o meu acesso VIP pelo Multicaixa Express 🔥',
+      author: 'Membro VIP Luanda',
+      handle: '@membro_vip',
+      isVip: true,
+      text: `Olha ${creator.shortName} acabei de pagar o VIP agora pelo Express! Quero marcar uma chamada de vídeo contigo hoje 🔥🇦🇴`,
+      time: 'há 6 min',
+      likes: 18,
+    },
+    {
+      id: 'c2',
+      author: creator.name,
+      handle: creator.handle,
+      isCreator: true,
+      isVip: true,
+      text: 'Acabei de confirmar aqui amor! Já te mandei mensagem no WhatsApp, atende lá que já estou online na chamada 💋',
+      time: 'há 4 min',
+      likes: 38,
+      isLiked: true,
+    },
+    {
+      id: 'c3',
+      author: 'Fã Secreto Maianga',
+      handle: '@fa_maianga',
+      isVip: true,
+      text: `Deixei uma mensagem no privado ${creator.shortName}, confirma lá o comprovativo do plano de 3 meses pfvr`,
       time: 'há 18 min',
       likes: 14,
     },
     {
-      id: 'c2',
-      author: 'Edvaldo Banza',
-      handle: '@edvaldo_luanda',
-      avatar: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=120&auto=format&fit=crop&q=80',
-      text: 'A chamada de vídeo de ontem no WhatsApp foi surreal... valeu cada Kwanza 😍👏',
-      time: 'há 42 min',
-      likes: 29,
-    },
-    {
-      id: 'c3',
-      author: 'Carlos Alberto',
-      handle: '@carlos_talatona',
-      avatar: 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=120&auto=format&fit=crop&q=80',
-      text: 'Linda demais! Quando é que vais publicar o próximo vídeo?',
-      time: 'há 1h',
-      likes: 8,
-    },
-    {
       id: 'c4',
-      author: 'Gelson Mendes',
-      handle: '@gelson_m',
-      avatar: 'https://images.unsplash.com/photo-1519085360753-af0119f7cbe7?w=120&auto=format&fit=crop&q=80',
-      text: 'Melhor criadora de Luanda sem dúvidas! Discreta e atenciosa no chat privado 🇦🇴✨',
-      time: 'há 2h',
-      likes: 19,
+      author: creator.name,
+      handle: creator.handle,
+      isCreator: true,
+      isVip: true,
+      text: 'Confirmadíssimo gato! Acesso liberado no Telegram e no feed sem censura 😈🔥',
+      time: 'há 15 min',
+      likes: 29,
+      isLiked: true,
+    },
+    {
+      id: 'c5',
+      author: 'Kota VIP Talatona',
+      handle: '@talatona_vip',
+      isVip: true,
+      text: 'Mano o VIP vale bué a pena, a chamada de ontem à noite foi surreal... 🔥🤤',
+      time: 'há 35 min',
+      likes: 22,
     },
   ]);
 
@@ -75,9 +89,9 @@ export const PostCommentsModal: React.FC<PostCommentsModalProps> = ({
 
     const added: Comment = {
       id: `c-${Date.now()}`,
-      author: 'Você (Assinante)',
-      handle: '@voce_vip',
-      avatar: 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=120&auto=format&fit=crop&q=80',
+      author: 'Você (Anónimo)',
+      handle: '@assinante_anonimo',
+      isVip: true,
       text: newComment.trim(),
       time: 'agora mesmo',
       likes: 1,
@@ -126,24 +140,46 @@ export const PostCommentsModal: React.FC<PostCommentsModalProps> = ({
           </button>
         </div>
 
+        {/* Discreet Notice */}
+        <div className="px-4 py-2 bg-slate-100/70 border-b border-slate-200/50 text-[11px] text-slate-500 flex items-center gap-1.5">
+          <span className="w-2 h-2 rounded-full bg-emerald-500 shrink-0"></span>
+          <span>100% Confidencial: a tua foto de perfil nunca é exibida nos comentários.</span>
+        </div>
+
         {/* Comments List */}
         <div className="flex-1 overflow-y-auto p-4 space-y-4">
           {comments.map((comment) => (
             <div key={comment.id} className="flex items-start gap-3 text-left">
-              <img
-                src={comment.avatar}
-                alt={comment.author}
-                className="w-9 h-9 rounded-full object-cover shrink-0 ring-1 ring-slate-200"
-              />
+              {/* Creator has verified photo, fans are anonymous without photo */}
+              {comment.isCreator ? (
+                <img
+                  src={creator.avatar}
+                  alt={creator.name}
+                  className="w-8 h-8 rounded-full object-cover shrink-0 ring-2 ring-[#00aff0]/40"
+                />
+              ) : (
+                <div
+                  className="w-8 h-8 rounded-full bg-slate-800 text-slate-200 flex items-center justify-center text-[10px] font-bold shrink-0 border border-slate-700 shadow-2xs"
+                  title="Confidencial · Sem foto"
+                >
+                  VIP
+                </div>
+              )}
               <div className="flex-1 min-w-0">
                 <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-1">
+                  <div className="flex items-center gap-1 flex-wrap">
                     <span className="text-xs font-bold text-slate-900">
                       {comment.author}
                     </span>
-                    <span className="text-[10px] text-slate-400 font-mono">
-                      {comment.time}
-                    </span>
+                    {comment.isCreator && (
+                      <CheckCircle2 className="w-3.5 h-3.5 text-white fill-[#00aff0] shrink-0" />
+                    )}
+                    {comment.isVip && !comment.isCreator && (
+                      <span className="px-1.5 py-0.2 rounded bg-amber-100 text-amber-800 text-[9px] font-bold">
+                        VIP
+                      </span>
+                    )}
+                    <span className="text-[10px] text-slate-400">· {comment.time}</span>
                   </div>
                   <button
                     onClick={() => handleToggleLike(comment.id)}
@@ -157,7 +193,7 @@ export const PostCommentsModal: React.FC<PostCommentsModalProps> = ({
                     <span>{comment.likes}</span>
                   </button>
                 </div>
-                <p className="text-xs text-slate-700 mt-0.5 leading-relaxed">
+                <p className="text-xs text-slate-700 mt-1 leading-relaxed">
                   {comment.text}
                 </p>
               </div>

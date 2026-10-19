@@ -184,8 +184,15 @@ export async function updateCreatorAvatarInFirestore(
 /**
  * Save an entire creator profile to Firestore
  */
-export async function saveCreatorToFirestore(creator: Creator): Promise<void> {
+export async function saveCreatorToFirestore(creator: Creator): Promise<boolean> {
   const path = `${CREATORS_COLLECTION}/${creator.id}`;
+  // Always update local storage first so user changes are never lost
+  try {
+    localStorage.setItem(`luanda_prive_creator_${creator.id}`, JSON.stringify(creator));
+  } catch (e) {
+    console.warn('LocalStorage save notice:', e);
+  }
+
   try {
     const docRef = doc(db, CREATORS_COLLECTION, creator.id);
     await setDoc(
@@ -196,8 +203,10 @@ export async function saveCreatorToFirestore(creator: Creator): Promise<void> {
       },
       { merge: true }
     );
+    return true;
   } catch (err) {
-    handleFirestoreError(err, OperationType.WRITE, path);
+    console.warn('Firestore sync notice (local state preserved):', err);
+    return false;
   }
 }
 

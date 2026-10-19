@@ -81,7 +81,12 @@ export interface Creator {
   plans: Plan[];
   checkoutUrl?: string;
   tipCheckoutUrl?: string;
+  mimoCheckoutUrls?: string[];
+  customPaymentButtonText?: string;
+  bannerVideo?: string;
   videoPaywallSeconds?: number;
+  mimoPrices?: number[];
+  preferInternalCheckout?: boolean;
 }
 
 export interface FAQItem {

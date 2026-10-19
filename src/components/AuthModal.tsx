@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { X, ShieldCheck, Sparkles, CheckCircle2, ArrowRight, User, EyeOff } from 'lucide-react';
 import { signInWithGoogle, signInAnonymouslyWithNickname } from '../firebase';
 import { AppUser } from '../types';
+import { LuandaPriveLogo } from './LuandaPriveLogo';
 
 interface AuthModalProps {
   isOpen: boolean;
@@ -96,10 +97,9 @@ export const AuthModal: React.FC<AuthModalProps> = ({
         </button>
 
         {/* Modal Banner */}
-        <div className="bg-gradient-to-br from-slate-950 via-slate-900 to-[#00aff0]/80 p-6 text-white text-center relative overflow-hidden">
-          <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-white/10 text-[#00aff0] text-xs font-bold uppercase tracking-wider mb-2">
-            <Sparkles className="w-3.5 h-3.5" />
-            <span>Luanda Privé · Área de Membros</span>
+        <div className="bg-gradient-to-br from-slate-950 via-slate-900 to-[#00aff0]/80 p-6 text-white text-center relative overflow-hidden flex flex-col items-center">
+          <div className="mb-2">
+            <LuandaPriveLogo size="md" variant="full" />
           </div>
 
           <h2 className="text-xl sm:text-2xl font-black tracking-tight text-white mb-1">

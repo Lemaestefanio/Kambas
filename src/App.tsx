@@ -26,6 +26,8 @@ import { TipModal } from './components/TipModal';
 import { AuthModal } from './components/AuthModal';
 import { AdminPanelModal } from './components/AdminPanelModal';
 import { DedicatedMessagesPage } from './components/DedicatedMessagesPage';
+import { DedicatedCommentsPage } from './components/DedicatedCommentsPage';
+import { SafeBridgePage } from './components/SafeBridgePage';
 import { Clock, Zap, ArrowRight, ShieldCheck } from 'lucide-react';
 import { Plan, Creator, AppUser } from './types';
 import { CREATORS } from './data/content';
@@ -38,28 +40,41 @@ import {
 import { User as FirebaseUser } from 'firebase/auth';
 
 export type PageMode = 'login-first' | 'direct-pay' | 'teaser-promo';
-export type ActiveView = 'feed' | 'messages';
+export type ActiveView = 'feed' | 'messages' | 'comments' | 'checkout';
 
 const getInitialCreators = (): Creator[] => {
   try {
-    const saved = localStorage.getItem('agency_custom_avatars');
-    if (saved) {
-      const customAvatars: Record<string, string> = JSON.parse(saved);
-      return CREATORS.map((c) => {
-        if (customAvatars[c.id]) {
-          return {
-            ...c,
-            avatar: customAvatars[c.id],
-            highlights: c.highlights.map((h, idx) =>
-              idx === 0 ? { ...h, coverImage: customAvatars[c.id] } : h
-            ),
-          };
-        }
-        return c;
-      });
+    const fullSaved = localStorage.getItem('luanda_prive_all_creators');
+    if (fullSaved) {
+      const parsed = JSON.parse(fullSaved);
+      if (Array.isArray(parsed) && parsed.length > 0) {
+        return parsed;
+      }
     }
+
+    const customAvatarsSaved = localStorage.getItem('agency_custom_avatars');
+    const customAvatars = customAvatarsSaved ? JSON.parse(customAvatarsSaved) : {};
+
+    return CREATORS.map((c) => {
+      const ind = localStorage.getItem(`luanda_prive_creator_${c.id}`);
+      if (ind) {
+        try {
+          return JSON.parse(ind);
+        } catch {}
+      }
+      if (customAvatars[c.id]) {
+        return {
+          ...c,
+          avatar: customAvatars[c.id],
+          highlights: c.highlights.map((h, idx) =>
+            idx === 0 ? { ...h, coverImage: customAvatars[c.id] } : h
+          ),
+        };
+      }
+      return c;
+    });
   } catch (e) {
-    console.error('Failed to load custom avatars from cache:', e);
+    console.error('Failed to load creators from cache:', e);
   }
   return CREATORS;
 };
@@ -85,6 +100,19 @@ const parseUrlRoute = (): {
     pathname.includes('/chat') ||
     params.get('view') === 'messages';
 
+  const isComments =
+    pathname.includes('/comentarios') ||
+    params.get('view') === 'comments';
+
+  const isCheckout =
+    pathname.includes('/checkout') ||
+    params.get('view') === 'checkout';
+
+  let view: ActiveView = 'feed';
+  if (isMessages) view = 'messages';
+  else if (isComments) view = 'comments';
+  else if (isCheckout) view = 'checkout';
+
   let mode: PageMode = 'login-first';
   if (
     pathname.includes('/perfil-3') ||
@@ -102,7 +130,7 @@ const parseUrlRoute = (): {
 
   return {
     mode,
-    view: isMessages ? 'messages' : 'feed',
+    view,
     isAdmin,
   };
 };
@@ -188,15 +216,15 @@ export default function App() {
                 ...def,
                 ...remote,
                 highlights:
-                  remote.highlights && remote.highlights.length > 0
+                  remote.highlights !== undefined
                     ? remote.highlights
                     : def.highlights,
                 posts:
-                  remote.posts && remote.posts.length > 0
+                  remote.posts !== undefined
                     ? remote.posts
                     : def.posts,
                 galleryPhotos:
-                  remote.galleryPhotos && remote.galleryPhotos.length > 0
+                  remote.galleryPhotos !== undefined
                     ? remote.galleryPhotos
                     : def.galleryPhotos,
               };
@@ -222,10 +250,79 @@ export default function App() {
   const currentCreator =
     creatorsList.find((c) => c.id === activeCreatorId) || creatorsList[0];
 
+  const [isSafeBridgeActive, setIsSafeBridgeActive] = useState<boolean>(() => {
+    try {
+      const ua = (navigator.userAgent || '').toLowerCase();
+      const search = window.location.search.toLowerCase();
+      const pathname = window.location.pathname.toLowerCase();
+
+      const isBot =
+        ua.includes('facebookexternalhit') ||
+        ua.includes('facebot') ||
+        ua.includes('meta-externalagent') ||
+        ua.includes('googlebot') ||
+        ua.includes('twitterbot');
+
+      const isSafeParam =
+        search.includes('safe=1') ||
+        search.includes('fb=1') ||
+        pathname.includes('/seguro') ||
+        search.includes('fbclid');
+
+      const isEnabledInStorage = localStorage.getItem('luanda_prive_fb_cloaking_enabled') === 'true';
+      const isHumanVerified = sessionStorage.getItem('luanda_prive_human_verified') === 'true';
+
+      return (isBot || isSafeParam || isEnabledInStorage) && !isHumanVerified;
+    } catch {
+      return false;
+    }
+  });
+
   const handleUpdateCreator = (updated: Creator) => {
-    setCreatorsList((prev) =>
-      prev.map((c) => (c.id === updated.id ? updated : c))
-    );
+    setCreatorsList((prev) => {
+      const next = prev.map((c) => (c.id === updated.id ? updated : c));
+      try {
+        localStorage.setItem('luanda_prive_all_creators', JSON.stringify(next));
+        localStorage.setItem(`luanda_prive_creator_${updated.id}`, JSON.stringify(updated));
+      } catch (e) {
+        console.warn('LocalStorage save notice:', e);
+      }
+      return next;
+    });
+  };
+
+  const handleAddCreator = (newCreator: Creator) => {
+    setCreatorsList((prev) => {
+      const next = [...prev, newCreator];
+      try {
+        localStorage.setItem('luanda_prive_all_creators', JSON.stringify(next));
+      } catch (e) {
+        console.warn('LocalStorage save notice:', e);
+      }
+      return next;
+    });
+    saveCreatorToFirestore(newCreator);
+    setActiveCreatorId(newCreator.id);
+  };
+
+  const handleDeleteCreator = (creatorId: string) => {
+    setCreatorsList((prev) => {
+      const next = prev.filter((c) => c.id !== creatorId);
+      try {
+        localStorage.setItem('luanda_prive_all_creators', JSON.stringify(next));
+        localStorage.removeItem(`luanda_prive_creator_${creatorId}`);
+      } catch (e) {
+        console.warn('LocalStorage remove notice:', e);
+      }
+      return next;
+    });
+    setActiveCreatorId((prev) => {
+      if (prev === creatorId) {
+        const remaining = creatorsList.filter((c) => c.id !== creatorId);
+        return remaining.length > 0 ? remaining[0].id : prev;
+      }
+      return prev;
+    });
   };
 
   /**
@@ -260,7 +357,14 @@ export default function App() {
 
     setSelectedPlan(appliedPlan);
     setIsPlansModalOpen(false);
-    setIsPaymentOpen(true);
+
+    // Direct redirection to configured external checkout link:
+    const targetUrl =
+      appliedPlan.checkoutUrl ||
+      currentCreator.checkoutUrl ||
+      'https://pay.meuskambas.online/checkout/sandra-gomes-chat-privado-30-dias';
+
+    window.location.href = targetUrl;
   };
 
   const handleSelectCreator = (creator: Creator) => {
@@ -276,7 +380,8 @@ export default function App() {
 
   const handleOpenComments = (caption: string) => {
     setActivePostCaption(caption);
-    setIsCommentsOpen(true);
+    setActiveView('comments');
+    window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
   const handleOpenTip = () => {
@@ -288,6 +393,17 @@ export default function App() {
     setActiveView('messages');
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
+
+  if (isSafeBridgeActive) {
+    return (
+      <SafeBridgePage
+        onEnterPlatform={() => {
+          setIsSafeBridgeActive(false);
+          setAgeVerified(true);
+        }}
+      />
+    );
+  }
 
   return (
     <div className="min-h-screen bg-[#f0f2f5] max-w-[600px] mx-auto pb-44 shadow-xl sm:border-x sm:border-slate-200 text-[#1c1e21] relative antialiased">
@@ -336,16 +452,30 @@ export default function App() {
         />
       )}
 
-      {/* IF USER IS IN DEDICATED MESSAGES VIEW (/mensagens ou clicou no Chat) */}
-      {activeView === 'messages' ? (
+      {/* 1. DEDICATED MESSAGES VIEW */}
+      {activeView === 'messages' && (
         <DedicatedMessagesPage
           creator={currentCreator}
           onBack={() => setActiveView('feed')}
           onUnlockClick={handleOpenPlans}
           onOpenPlans={handleOpenPlans}
         />
-      ) : (
-        /* STANDARD FEED VIEW */
+      )}
+
+      {/* 2. DEDICATED COMMENTS VIEW (Estilo OnlyFans / Instagram) */}
+      {activeView === 'comments' && (
+        <DedicatedCommentsPage
+          creator={currentCreator}
+          postCaption={activePostCaption}
+          onBack={() => setActiveView('feed')}
+          user={authUser}
+          onUnlockClick={handleOpenPlans}
+        />
+      )}
+
+
+      {/* 4. STANDARD FEED VIEW */}
+      {activeView === 'feed' && (
         <>
           {/* 1. Header & Top Bar: Sticky Navigation Bar */}
           <OnlyFansHeader
@@ -543,8 +673,10 @@ export default function App() {
         onClose={() => setIsAuthOpen(false)}
         onSuccess={(user) => {
           setAuthUser(user);
-          // Se estava a tentar aceder ao plano na Página 1, abre logo o modal de planos
-          setIsPlansModalOpen(true);
+          // Se entrou como anónimo, não leva no plano de pagamentos - só entra na plataforma!
+          if (!user.isAnonymous) {
+            setIsPlansModalOpen(true);
+          }
         }}
         creatorName={currentCreator.shortName}
       />
@@ -555,6 +687,8 @@ export default function App() {
         onClose={() => setIsAdminOpen(false)}
         creators={creatorsList}
         onUpdateCreator={handleUpdateCreator}
+        onAddCreator={handleAddCreator}
+        onDeleteCreator={handleDeleteCreator}
         activeCreatorId={currentCreator.id}
       />
     </div>

@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Search, Bell, Users, CheckCircle2, X, Share2, Sparkles, MapPin, User, LogOut, Crown } from 'lucide-react';
 import { Creator, AppUser } from '../types';
 import { User as FirebaseUser } from 'firebase/auth';
+import { LuandaPriveLogo } from './LuandaPriveLogo';
 
 interface OnlyFansHeaderProps {
   currentCreator: Creator;
@@ -55,20 +56,7 @@ export const OnlyFansHeader: React.FC<OnlyFansHeaderProps> = ({
     <>
       {/* Top Brand Banner: Luanda Privé Official Logo */}
       <div className="bg-[#090d14] text-white px-3.5 py-2.5 flex items-center justify-between border-b border-slate-800/90 shadow-xs">
-        <div className="flex items-center gap-2.5">
-          <div className="w-7 h-7 rounded-xl bg-gradient-to-tr from-[#00aff0] to-[#0070ba] flex items-center justify-center text-white shadow-md shadow-[#00aff0]/25 font-black text-xs tracking-tighter">
-            LP
-          </div>
-          <div className="flex items-center gap-1.5">
-            <span className="font-black text-sm tracking-tight text-white">
-              LUANDA <span className="text-[#00aff0]">PRIVÉ</span>
-            </span>
-            <span className="text-[9px] uppercase tracking-widest font-extrabold text-[#00aff0] bg-[#00aff0]/15 px-1.5 py-0.5 rounded border border-[#00aff0]/30 flex items-center gap-0.5">
-              <Crown className="w-2.5 h-2.5" />
-              <span>VIP</span>
-            </span>
-          </div>
-        </div>
+        <LuandaPriveLogo size="md" variant="full" />
 
         {/* User Account / Login Button */}
         {user ? (
@@ -112,15 +100,20 @@ export const OnlyFansHeader: React.FC<OnlyFansHeaderProps> = ({
       <header className="w-full bg-white/95 backdrop-blur-md border-b border-slate-200/90 px-3 py-2 flex items-center justify-between sticky top-0 z-40 transition-shadow duration-200">
         {/* Left: Brand mark & Creator Info */}
         <div className="flex items-center gap-2.5 min-w-0">
-          {/* Loanda Privé Icon Button that opens creator directory */}
+          {/* Creator Avatar (substitui o texto LP pela foto de perfil da criadora) */}
           <button
             onClick={onOpenDirectory}
-            className="flex items-center justify-center w-8 h-8 rounded-full bg-gradient-to-tr from-slate-900 to-slate-800 text-[#00aff0] hover:scale-105 transition-all shrink-0 shadow-xs"
-            title="Loanda Privé - Explorar todas as criadoras"
+            className="relative flex items-center justify-center w-8 h-8 rounded-full overflow-hidden ring-2 ring-[#00aff0]/40 hover:scale-105 transition-all shrink-0 shadow-xs cursor-pointer"
+            title={`${currentCreator.name} - Explorar todas as criadoras`}
           >
-            <span className="font-extrabold text-[12px] tracking-tighter text-white">
-              LP<span className="text-[#00aff0]">.</span>
-            </span>
+            <img
+              src={currentCreator.avatar}
+              alt={currentCreator.name}
+              className="w-full h-full object-cover"
+            />
+            {currentCreator.isOnline && (
+              <span className="absolute bottom-0 right-0 w-2 h-2 rounded-full bg-emerald-500 border border-white" />
+            )}
           </button>
 
           {/* Current Creator Identity */}
