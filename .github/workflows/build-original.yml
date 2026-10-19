@@ -14,16 +14,16 @@ jobs:
     timeout-minutes: 10
     steps:
       - name: Read the verified original version
-        uses: actions/checkout@v7
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
         with:
           ref: a0c9245a734db6e3cdee071b133a5126a29c3c3b
           persist-credentials: false
-      - uses: actions/setup-node@v7
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1
         with:
           node-version: '24'
           package-manager-cache: false
       - name: Install Bun
-        run: npm install --global bun
+        run: npm install --global bun@1.4.3
       - name: Install the locked dependencies
         run: bun install --frozen-lockfile
       - name: Build the original site
@@ -31,9 +31,57 @@ jobs:
       - name: Confirm original tracked files are unchanged
         run: git diff --exit-code
       - name: Retain the built site for preview preparation
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
         with:
           name: kambas-original-a0c9245
           path: dist/
           if-no-files-found: error
           retention-days: 7
+
+  retain-preview-build:
+    needs: build
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: write
+      actions: read
+    steps:
+      - name: Open the preview preparation branch
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          ref: codex/kambas-preview-20261019
+      - name: Retrieve the verified build
+        env:
+          GH_TOKEN: ${{ github.token }}
+          BUILD_RUN_ID: ${{ github.run_id }}
+        run: gh run download "$BUILD_RUN_ID" --repo Lemaestefanio/Kambas --name kambas-original-a0c9245 --dir /tmp/kambas-verified-dist
+      - name: Retain compiled text and the asset checksums
+        run: |
+          python3 - <<'PY'
+          import hashlib, json, shutil
+          from pathlib import Path
+          source = Path('/tmp/kambas-verified-dist')
+          destination = Path('preview-build')
+          destination.mkdir(exist_ok=True)
+          files = []
+          for item in sorted(source.rglob('*')):
+              if not item.is_file():
+                  continue
+              relative = item.relative_to(source)
+              data = item.read_bytes()
+              files.append({'path': relative.as_posix(), 'size': len(data), 'sha256': hashlib.sha256(data).hexdigest()})
+              if item.suffix in {'.html', '.js', '.css'}:
+                  target = destination / relative
+                  target.parent.mkdir(parents=True, exist_ok=True)
+                  shutil.copyfile(item, target)
+          manifest = {'source_commit': 'a0c9245a734db6e3cdee071b133a5126a29c3c3b', 'files': files}
+          (destination / 'manifest.json').write_text(json.dumps(manifest, indent=2) + '\n')
+          PY
+      - name: Save only generated preview files on the preparation branch
+        run: |
+          git add -- preview-build/
+          if git diff --cached --quiet; then
+            exit 0
+          fi
+          git -c user.name='github-actions[bot]' -c user.email='41898282+github-actions[bot]@users.noreply.github.com' commit -m 'build: retain compiled original for preview'
+          git push origin HEAD:refs/heads/codex/kambas-preview-20261019
