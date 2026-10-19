@@ -257,7 +257,7 @@ describe('administrative sharing links retain route and creator selection', () =
     };
     const html = renderToStaticMarkup(<Provider><StoryViewerModal creator={creator} initialStoryIndex={0} isOpen onClose={() => {}} onUnlockClick={() => {}} /></Provider>);
     expect(html).toContain('Legenda de teste');
-    expect(html).toContain('aria-label="Reproduzir prévia"');
+    expect(html).toContain('aria-label="Reproduzir vídeo"');
     expect(html).toContain('preload="none"');
     expect(html).not.toContain('https://media.example/story.mp4');
     expect(html).not.toContain('https://media.example/story.webp');
