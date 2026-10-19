@@ -25,11 +25,7 @@ export const PlansModal: React.FC<PlansModalProps> = ({
   const activePlan = creator.plans.find((p) => p.id === selectedPlanId) || defaultPlan;
 
   const handleContinue = () => {
-    const targetUrl =
-      activePlan.checkoutUrl ||
-      creator.checkoutUrl ||
-      'https://pay.meuskambas.online/checkout/sandra-gomes-chat-privado-30-dias';
-    window.location.href = targetUrl;
+    if (activePlan) onSelectPlan(activePlan);
   };
 
   if (!isOpen || !activePlan) return null;
@@ -199,3 +195,4 @@ export const PlansModal: React.FC<PlansModalProps> = ({
     </div>
   );
 };
+

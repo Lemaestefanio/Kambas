@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { Check, Copy, ExternalLink } from 'lucide-react';
 
 export const PROFILE_PAGES = [
-  { path: '/', title: 'Página principal', description: 'Perfil, feed e opção de entrar com Google ou como anónimo.' },
+  { path: '/', title: 'Página principal', description: 'Perfil e feed com compra sem conta por predefinição. As experiências podem ser editadas em Versões A/B.' },
   { path: '/perfil-3', title: 'Checkout direto sem login', description: 'Acesso ao perfil com pagamento direto ao selecionar conteúdo bloqueado.' },
   { path: '/promo-3', title: 'Teaser e promoção VIP', description: 'Página de apresentação com a oferta promocional.' },
   { path: '/mensagens', title: 'Mensagens com vídeo teaser', description: 'Abre a conversa da criadora com o vídeo de apresentação.' },
@@ -57,3 +57,4 @@ export function AdminPageLinks({ creatorId, creatorName, isNew, hasChanges }: { 
     <p role="status" className="sr-only">{copied ? 'Link copiado com sucesso.' : ''}</p>
   </div>;
 }
+

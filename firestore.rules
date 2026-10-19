@@ -26,7 +26,8 @@ service cloud.firestore {
           'posts', 'incomingMessage', 'whatsappNumber', 'plans', 'checkoutUrl',
           'tipCheckoutUrl', 'mimoCheckoutUrls', 'customPaymentButtonText',
           'bannerVideo', 'videoPaywallSeconds', 'mimoPrices',
-          'preferInternalCheckout', 'managedComments', 'actionLinks', 'createdAt', 'updatedAt'
+          'preferInternalCheckout', 'managedComments', 'commentsAccess', 'pageVariants', 'cover',
+          'actionLinks', 'createdAt', 'updatedAt'
         ])
         && data.id == creatorId
         && data.name is string && data.name.size() > 0 && data.name.size() <= 500
@@ -42,6 +43,10 @@ service cloud.firestore {
         && (!('galleryPhotos' in data) || (data.galleryPhotos is list && data.galleryPhotos.size() <= 1000))
         && (!('voiceNotes' in data) || (data.voiceNotes is list && data.voiceNotes.size() <= 1000))
         && (!('managedComments' in data) || (data.managedComments is list && data.managedComments.size() <= 100))
+        && (!('commentsAccess' in data) || (data.commentsAccess is string
+          && data.commentsAccess in ['public', 'premium']))
+        && (!('pageVariants' in data) || validPageVariants(data.pageVariants))
+        && (!('cover' in data) || validCover(data.cover))
         && (!('actionLinks' in data) || validActionLinks(data.actionLinks))
         && data.updatedAt is timestamp
         && (!('createdAt' in data) || data.createdAt is timestamp);
@@ -62,6 +67,57 @@ service cloud.firestore {
         && actionUrl(data.get('login', ''))
         && actionUrl(data.get('explore', ''))
         && actionUrl(data.get('notifications', ''));
+    }
+
+    function validPageVariant(data) {
+      return data is map
+        && data.keys().hasAll(['label', 'checkoutMode'])
+        && data.keys().hasOnly([
+          'label', 'checkoutMode', 'bio', 'customPaymentButtonText',
+          'checkoutUrl', 'avatar', 'banner'
+        ])
+        && data.label is string && data.label.size() <= 120
+        && data.checkoutMode is string && data.checkoutMode in ['guest', 'account']
+        && (!('bio' in data) || (data.bio is string && data.bio.size() <= 20000))
+        && (!('customPaymentButtonText' in data) || (data.customPaymentButtonText is string
+          && data.customPaymentButtonText.size() <= 200))
+        && (!('checkoutUrl' in data) || actionUrl(data.checkoutUrl))
+        && (!('avatar' in data) || mediaUrl(data.avatar))
+        && (!('banner' in data) || mediaUrl(data.banner));
+    }
+
+    function validPageVariants(data) {
+      return data is map
+        && data.keys().hasOnly(['a', 'b'])
+        && (!('a' in data) || validPageVariant(data.a))
+        && (!('b' in data) || validPageVariant(data.b));
+    }
+
+    function validIsoDateString(value) {
+      return value is string && value.size() <= 40
+        && value.matches('^[0-9]{4}-(0[1-9]|1[0-2])-(0[1-9]|[12][0-9]|3[01])T([01][0-9]|2[0-3]):[0-5][0-9]:[0-5][0-9](\\.[0-9]{1,9})?(Z|[+-]([01][0-9]|2[0-3]):[0-5][0-9])$');
+    }
+
+    function validCover(data) {
+      return data is map
+        && data.keys().hasAll([
+          'type', 'positionX', 'positionY', 'visibility', 'blurAmount', 'previewAudio', 'presentation'
+        ])
+        && data.keys().hasOnly([
+          'type', 'positionX', 'positionY', 'visibility', 'blurAmount', 'previewAudio', 'presentation',
+          'startsAt', 'endsAt', 'viewerCount'
+        ])
+        && data.type is string && data.type in ['image', 'video']
+        && data.positionX is number && data.positionX >= 0 && data.positionX <= 100
+        && data.positionY is number && data.positionY >= 0 && data.positionY <= 100
+        && data.visibility is string && data.visibility in ['public', 'blurred']
+        && data.blurAmount is number && data.blurAmount >= 2 && data.blurAmount <= 12
+        && data.previewAudio is bool
+        && data.presentation is string && data.presentation in ['video', 'premiere']
+        && (!('startsAt' in data) || validIsoDateString(data.startsAt))
+        && (!('endsAt' in data) || validIsoDateString(data.endsAt))
+        && (!('viewerCount' in data) || (data.viewerCount is int
+          && data.viewerCount >= 0 && data.viewerCount <= 10000000));
     }
 
     function validBank(data) {
@@ -87,6 +143,8 @@ service cloud.firestore {
     }
 
     match /creators/{creatorId} {
+      // commentsAccess is a display setting, not a subscription entitlement.
+      // Private premium content must use separately authorized documents.
       allow get, list: if true;
       allow create, update: if isAdmin() && isValidId(creatorId)
         && validCreator(request.resource.data, creatorId);

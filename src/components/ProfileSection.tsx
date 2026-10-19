@@ -1,5 +1,5 @@
 import { useSiteContent } from '../cms/SiteContent';
-import { MediaPreview } from './MediaPreview';
+import { CoverMedia } from './CoverMedia';
 import React, { useState, useEffect } from 'react';
 import { CheckCircle2, Star, MessageCircle, Share2, MapPin, Sparkles } from 'lucide-react';
 import { Creator } from '../types';
@@ -36,8 +36,6 @@ export const ProfileSection: React.FC<ProfileSectionProps> = ({
   const [isExpanded, setIsExpanded] = useState(false);
   const [isFavorite, setIsFavorite] = useState(false);
   const [showShareNotification, setShowShareNotification] = useState(false);
-  const resolvedBanner = useCurrentMedia(creator.banner || '');
-  const resolvedBannerVideo = useCurrentMedia(creator.bannerVideo || '');
   const resolvedAvatar = useCurrentMedia(creator.avatar || '');
 
   const handleShareClick = () => {
@@ -58,38 +56,10 @@ export const ProfileSection: React.FC<ProfileSectionProps> = ({
     }
   };
 
-  const isVideoCover =
-    Boolean(resolvedBannerVideo) ||
-    resolvedBanner.includes('.mp4') ||
-    resolvedBanner.includes('video/');
-
   return (
     <section className="bg-white border-b border-slate-200/80">
       {/* Cover Banner (Supports Photo or Looping Video Cover) */}
-      <div className="relative h-[190px] sm:h-[220px] w-full overflow-hidden bg-slate-200">
-        {isVideoCover ? (
-          <MediaPreview
-            key={creator.id}
-            kind="video"
-            src={resolvedBannerVideo || resolvedBanner}
-            poster={!resolvedBanner.includes('.mp4') && !resolvedBanner.includes('video/') ? resolvedBanner : undefined}
-            alt={copy('home.profile.cover', { name: creator.name })}
-            defaultPublic
-            className="h-full w-full"
-          />
-        ) : (
-          <img
-            src={resolvedBanner || undefined}
-            alt={copy('home.profile.cover', { name: creator.name })}
-            loading="eager"
-            fetchPriority="high"
-            decoding="async"
-            className="w-full h-full object-cover select-none pointer-events-none"
-            draggable={false}
-          />
-        )}
-        <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/25 via-transparent to-black/10" />
-      </div>
+      <CoverMedia key={creator.id} creator={creator} alt={copy('home.profile.cover', { name: creator.name })} />
 
       {/* Profile Details Container */}
       <div className="px-4 pb-4 relative">
@@ -99,9 +69,11 @@ export const ProfileSection: React.FC<ProfileSectionProps> = ({
           <div className="relative group">
             <div className="w-[96px] h-[96px] rounded-full border-[4px] border-white overflow-hidden bg-white shadow-lg relative">
               <img
+                key={resolvedAvatar || creator.avatar}
                 src={resolvedAvatar || undefined}
                 alt={creator.name}
-                loading="lazy"
+                loading="eager"
+                fetchPriority="high"
                 decoding="async"
                 className="w-full h-full object-cover select-none pointer-events-none"
                 draggable={false}

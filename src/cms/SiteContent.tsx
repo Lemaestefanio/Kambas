@@ -35,7 +35,7 @@ export function SiteContentProvider({ children }: { children: React.ReactNode })
     const fail = () => {
       if (!active) return;
       setLoading(false);
-      setError('Não foi possível carregar a página. Verifica a ligação e tenta novamente.');
+      setError('A página está temporariamente indisponível. Verifica a ligação e tenta novamente.');
     };
     const timeout = window.setTimeout(fail, 12_000);
     try {

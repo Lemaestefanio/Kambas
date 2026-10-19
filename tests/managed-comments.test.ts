@@ -1,6 +1,6 @@
 import { describe, expect, test } from 'bun:test';
 import type { Creator, ManagedComment } from '../src/types';
-import { getManagedComments, resolveCommentPostId, validateManagedComments } from '../src/utils/managedComments';
+import { areCommentsRestricted, getManagedComments, resolveCommentPostId, validateManagedComments } from '../src/utils/managedComments';
 
 const posts = [
   { id: 'first', text: 'Primeira publicação' },
@@ -15,6 +15,21 @@ describe('managed public comments', () => {
   test('missing or deliberately empty configuration never generates testimonials', () => {
     expect(getManagedComments(creator())).toEqual([]);
     expect(getManagedComments(creator([]))).toEqual([]);
+  });
+
+  test('premium configuration hides both general and post-specific comments from the public view', () => {
+    const profile = { ...creator([comment('general'), comment('post', { postId: 'first', kind: 'real' })]), commentsAccess: 'premium' as const };
+    expect(areCommentsRestricted(profile)).toBe(true);
+    expect(getManagedComments(profile)).toEqual([]);
+    expect(getManagedComments(profile, 'first')).toEqual([]);
+  });
+
+  test('public remains the default; an unknown access setting does not disclose comments', () => {
+    expect(areCommentsRestricted({})).toBe(false);
+    expect(areCommentsRestricted({ commentsAccess: 'public' })).toBe(false);
+    const profile = { ...creator([comment('general')]), commentsAccess: 'unexpected' as Creator['commentsAccess'] };
+    expect(areCommentsRestricted(profile)).toBe(true);
+    expect(getManagedComments(profile)).toEqual([]);
   });
 
   test('each post receives general comments and only its own assigned comments', () => {

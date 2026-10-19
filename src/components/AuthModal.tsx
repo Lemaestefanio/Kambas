@@ -10,6 +10,7 @@ interface AuthModalProps {
   onClose: () => void;
   onSuccess: (user: AppUser) => void;
   creatorName?: string;
+  allowAnonymous?: boolean;
 }
 
 export const AuthModal: React.FC<AuthModalProps> = ({
@@ -17,6 +18,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
   onClose,
   onSuccess,
   creatorName = 'Criadoras VIP',
+  allowAnonymous = true,
 }) => {
   const { copy } = useSiteContent();
   const [loading, setLoading] = useState(false);
@@ -152,7 +154,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                 <span>{loading ? copy("overlay.auth-modal.017") : copy("overlay.auth-modal.018")}</span>
               </button>
 
-              <div className="relative flex py-1 items-center">
+              {allowAnonymous && <><div className="relative flex py-1 items-center">
                 <div className="flex-grow border-t border-slate-200"></div>
                 <span className="flex-shrink mx-3 text-[11px] text-slate-400 font-bold uppercase tracking-wider">{copy("overlay.auth-modal.001")}</span>
                 <div className="flex-grow border-t border-slate-200"></div>
@@ -166,7 +168,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
               >
                 <EyeOff className="w-4 h-4 text-[#00aff0]" />
                 <span>{copy("overlay.auth-modal.002")}</span>
-              </button>
+              </button></>}
             </div>
           ) : (
             <form onSubmit={handleAnonymousSubmit} className="space-y-4">
@@ -211,3 +213,4 @@ export const AuthModal: React.FC<AuthModalProps> = ({
     </div>
   );
 };
+

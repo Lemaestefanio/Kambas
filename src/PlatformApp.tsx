@@ -25,7 +25,9 @@ import type { User as FirebaseUser } from 'firebase/auth';
 import { SiteContentProvider, useSiteContent } from './cms/SiteContent';
 import type { PageMode, ActiveView } from './App';
 import { getRequestedCreatorId } from './utils/creatorRoute';
-import { openConfiguredAction } from './utils/actionLinks';
+import { openConfiguredAction, safeActionUrl } from './utils/actionLinks';
+import { resolvePageVariant } from './utils/pageVariants';
+import { PlatformSkeleton } from './components/PlatformSkeleton';
 
 const PhotoGalleryGrid = lazy(() => import('./components/PhotoGalleryGrid').then(module => ({ default: module.PhotoGalleryGrid })));
 const VoiceNotesList = lazy(() => import('./components/VoiceNotesList').then(module => ({ default: module.VoiceNotesList })));
@@ -42,35 +44,25 @@ const DedicatedMessagesPage = lazy(() => import('./components/DedicatedMessagesP
 const DedicatedCommentsPage = lazy(() => import('./components/DedicatedCommentsPage').then(module => ({ default: module.DedicatedCommentsPage })));
 
 function SectionLoading() {
-  return <div className="p-8 text-center text-sm text-slate-500" role="status">A carregar…</div>;
+  return <div className="space-y-4 p-5" role="status" aria-label="A preparar conteúdo" aria-busy="true"><div className="h-12 rounded-xl bg-slate-200 motion-safe:animate-pulse" /><div className="h-64 rounded-2xl bg-slate-200 motion-safe:animate-pulse" /></div>;
 }
 
 function DialogLoading() {
-  return <div className="fixed inset-0 z-[100] grid place-items-center bg-black/60 p-6" role="status"><p className="rounded-2xl bg-white px-6 py-4 text-sm text-slate-700 shadow-xl">A abrir…</p></div>;
+  return <div className="fixed inset-0 z-[100] grid place-items-center bg-black/60 p-6" role="status" aria-label="A preparar janela" aria-busy="true"><div className="h-10 w-10 rounded-full border-4 border-white/25 border-t-white motion-safe:animate-spin" /></div>;
 }
 
 function CatalogueStatus({ error, onRetry }: { error: string | null; onRetry: () => void }) {
+  if (!error) return <PlatformSkeleton />;
   return (
     <main className="mx-auto min-h-screen max-w-[600px] bg-slate-50 px-6 py-12" aria-busy={!error}>
       <div className="mx-auto max-w-sm">
         <div className="mb-10 flex h-24 items-center justify-center rounded-2xl bg-slate-950 p-4">
           <img src="/assets/platform-logo.png" alt="Luanda Privé" width="240" height="80" className="h-full w-full object-contain" decoding="async" />
         </div>
-        {error ? (
           <div className="rounded-2xl border border-slate-200 bg-white p-6 text-center">
             <p className="text-sm leading-relaxed text-slate-600" role="alert">{error}</p>
             <button type="button" onClick={onRetry} className="mt-5 rounded-full bg-[#00aff0] px-6 py-3 text-sm font-bold text-white focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-sky-500">Tentar novamente</button>
           </div>
-        ) : (
-          <>
-            <p role="status" className="mb-6 text-center text-sm text-slate-500">A carregar o perfil actualizado…</p>
-            <div aria-hidden="true" className="space-y-4 motion-safe:animate-pulse">
-              <div className="h-40 rounded-2xl bg-slate-200" />
-              <div className="flex items-center gap-4"><div className="h-16 w-16 rounded-full bg-slate-200" /><div className="h-4 w-40 rounded-full bg-slate-200" /></div>
-              <div className="h-3 w-full rounded-full bg-slate-200" /><div className="h-3 w-3/4 rounded-full bg-slate-200" />
-            </div>
-          </>
-        )}
       </div>
     </main>
   );
@@ -115,7 +107,8 @@ const parseUrlRoute = (): {
   else if (isComments) view = 'comments';
   else if (isCheckout) view = 'checkout';
 
-  let mode: PageMode = 'login-first';
+  let mode: PageMode = 'direct-pay';
+  if (params.get('mode') === 'login-first') mode = 'login-first';
   if (
     pathname.includes('/perfil-3') ||
     params.get('mode') === 'direct-pay' ||
@@ -160,17 +153,11 @@ export function PlatformContent() {
   // Administrative route (authorization is enforced by Firebase rules)
   const [isAdminOpen, setIsAdminOpen] = useState(initialRoute.isAdmin);
 
-  // User Authentication state (restored from browser session for privacy)
-  const [authUser, setAuthUser] = useState<AppUser | FirebaseUser | null>(() => {
-    try {
-      const saved = sessionStorage.getItem('luanda_prive_user');
-      if (saved) return JSON.parse(saved);
-    } catch (e) {
-      console.error(e);
-    }
-    return null;
-  });
+  // Only Firebase may confirm a signed-in account; guest checkout needs no account.
+  const [authUser, setAuthUser] = useState<AppUser | FirebaseUser | null>(null);
   const [isAuthOpen, setIsAuthOpen] = useState(false);
+  const [checkoutAfterAuth, setCheckoutAfterAuth] = useState(false);
+  const [checkoutError, setCheckoutError] = useState('');
 
   // Modals for deep navigation & realism
   const [isStoryOpen, setIsStoryOpen] = useState(false);
@@ -215,7 +202,7 @@ export function PlatformContent() {
     const fail = () => {
       if (!active) return;
       setCreatorsLoading(false);
-      setCreatorsError('Não foi possível carregar o perfil actualizado. Verifica a ligação e tenta novamente.');
+      setCreatorsError('O perfil está temporariamente indisponível. Verifica a ligação e tenta novamente.');
     };
     const timeout = window.setTimeout(fail, 12_000);
     try {
@@ -256,11 +243,18 @@ export function PlatformContent() {
     return <CatalogueStatus error={creatorsError || settingsError} onRetry={retryCatalogue} />;
   }
 
-  const currentCreator =
+  const publishedCreator =
     creatorsList.find((c) => c.id === activeCreatorId) || creatorsList[0];
-  if (!currentCreator) {
+  if (!publishedCreator) {
     return <CatalogueStatus error="Ainda não existem perfis disponíveis." onRetry={retryCatalogue} />;
   }
+  const variant = resolvePageVariant(publishedCreator, window.location.search);
+  const currentCreator = variant.creator;
+  const requiresAccount = pageMode === 'login-first' || (
+    variant.checkoutMode === 'account' && !window.location.pathname.includes('/perfil-3') && pageMode !== 'teaser-promo'
+  );
+  const hasAccount = !!authUser && !authUser.isAnonymous;
+  const variantCheckout = safeActionUrl(publishedCreator.pageVariants?.[variant.variant]?.checkoutUrl);
 
   // Admin callbacks run only after Firestore confirms the corresponding write.
   const handleUpdateCreator = (updated: Creator) => {
@@ -281,27 +275,29 @@ export function PlatformContent() {
     }
   };
 
-  /**
-   * Action: Open Plans / Unlock Content
-   * Respects the 3 distinct page links:
-   * - Página 1 (login-first /): Requires account creation first!
-   * - Página 2 (direct-pay /perfil-3): Directly opens payment without any login!
-   * - Página 3 (teaser-promo /promo-3): Opens plans with 50% discount highlight!
-   */
+  // Default A is guest checkout. Account-first is an explicit experiment option.
   const handleOpenPlans = () => {
-    if (openConfiguredAction(currentCreator, 'subscribe')) return;
-    if (pageMode === 'login-first' && !authUser) {
-      if (openConfiguredAction(currentCreator, 'signup')) return;
+    setCheckoutError('');
+    if (requiresAccount && !hasAccount) {
+      setCheckoutAfterAuth(true);
       setIsAuthOpen(true);
       return;
     }
+    if (!variantCheckout && openConfiguredAction(currentCreator, 'subscribe')) return;
     setIsPlansModalOpen(true);
   };
 
-  const handleSelectPlan = (plan: Plan) => {
+  const handleSelectPlan = (plan: Plan, subscription = true) => {
+    if (!subscription) setIsTipOpen(false);
+    if (subscription && requiresAccount && !hasAccount) {
+      setCheckoutAfterAuth(true);
+      setIsPlansModalOpen(false);
+      setIsAuthOpen(true);
+      return;
+    }
     // If in Promo mode (/promo-3), apply 50% discount tag
     let appliedPlan = plan;
-    if (pageMode === 'teaser-promo') {
+    if (subscription && pageMode === 'teaser-promo') {
       const halfPriceRaw = Math.round(plan.rawPrice * 0.5);
       const formattedPrice = `${halfPriceRaw.toLocaleString('pt-AO')} Kz`;
       appliedPlan = {
@@ -317,15 +313,19 @@ export function PlatformContent() {
     setIsPlansModalOpen(false);
 
     // Direct redirection to configured external checkout link:
-    const targetUrl =
-      appliedPlan.checkoutUrl ||
-      currentCreator.checkoutUrl ||
-      'https://pay.meuskambas.online/checkout/sandra-gomes-chat-privado-30-dias';
-
-    window.location.href = targetUrl;
+    const targetUrl = (subscription ? variantCheckout : null)
+      || safeActionUrl(appliedPlan.checkoutUrl)
+      || safeActionUrl(subscription ? currentCreator.checkoutUrl : currentCreator.tipCheckoutUrl);
+    if (!targetUrl) {
+      setCheckoutError('O pagamento deste plano ainda não está disponível. Tenta outro plano ou volta mais tarde.');
+      return;
+    }
+    window.location.assign(targetUrl);
   };
 
   const handleSelectCreator = (creator: Creator) => {
+    setCheckoutAfterAuth(false);
+    setCheckoutError('');
     setActiveCreatorId(creator.id);
     setActiveTab('posts');
     window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -367,11 +367,13 @@ export function PlatformContent() {
 
   const handleOpenAuth = () => {
     if (openConfiguredAction(currentCreator, 'login')) return;
+    setCheckoutAfterAuth(false);
     setIsAuthOpen(true);
   };
 
   return (
     <div className="min-h-screen bg-[#f0f2f5] max-w-[600px] mx-auto pb-44 shadow-xl sm:border-x sm:border-slate-200 text-[#1c1e21] relative antialiased">
+      {checkoutError && <div role="alert" className="sticky top-0 z-[100] flex items-center gap-3 border-b border-amber-200 bg-amber-50 p-4 text-sm text-amber-950"><p className="flex-1">{checkoutError}</p><button type="button" onClick={() => setCheckoutError('')} aria-label="Fechar aviso" className="p-2">×</button></div>}
       {/* Página 3: Promo Banner de Alta Conversão com Contagem Decrescente (Só aparece em /promo-3) */}
       {pageMode === 'teaser-promo' && (
         <div className="sticky top-0 z-50 bg-gradient-to-r from-rose-950 via-slate-900 to-rose-950 text-white px-3.5 py-2.5 flex items-center justify-between border-b border-rose-800 shadow-md">
@@ -440,6 +442,11 @@ export function PlatformContent() {
         </Suspense>
       )}
 
+
+      {activeView === 'checkout' && <main className="min-h-screen py-6">
+        <button type="button" onClick={() => setActiveView('feed')} className="mx-4 mb-4 rounded-full border border-slate-200 bg-white px-4 py-2 text-sm font-medium">Voltar ao perfil</button>
+        <PlansSection creator={currentCreator} onOpenPlansModal={handleOpenPlans} />
+      </main>}
 
       {/* 4. STANDARD FEED VIEW */}
       {activeView === 'feed' && (
@@ -627,6 +634,7 @@ export function PlatformContent() {
             creator={currentCreator}
             postCaption={activePostCaption}
             postId={activePostId}
+            onUnlockClick={handleOpenPlans}
           />
         </Suspense>
       )}
@@ -638,7 +646,7 @@ export function PlatformContent() {
             isOpen={isTipOpen}
             onClose={() => setIsTipOpen(false)}
             creator={currentCreator}
-            onProceedToPayment={handleSelectPlan}
+            onProceedToPayment={(plan) => handleSelectPlan(plan, false)}
           />
         </Suspense>
       )}
@@ -673,12 +681,13 @@ export function PlatformContent() {
         <Suspense fallback={<DialogLoading />}>
           <AuthModal
             isOpen={isAuthOpen}
-            onClose={() => setIsAuthOpen(false)}
+            onClose={() => { setIsAuthOpen(false); setCheckoutAfterAuth(false); }}
+            allowAnonymous={!checkoutAfterAuth}
             onSuccess={(user) => {
               setAuthUser(user);
-              // Se entrou como anónimo, não leva no plano de pagamentos - só entra na plataforma!
-              if (!user.isAnonymous) {
-                setIsPlansModalOpen(true);
+              if (checkoutAfterAuth && !user.isAnonymous) {
+                setCheckoutAfterAuth(false);
+                if (variantCheckout || !openConfiguredAction(currentCreator, 'subscribe')) setIsPlansModalOpen(true);
               }
             }}
             creatorName={currentCreator.shortName}

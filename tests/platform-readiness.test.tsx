@@ -80,8 +80,9 @@ async function sendSettings() {
 }
 function expectNeutral() {
   expect(container.querySelector('[role="status"]')).not.toBeNull();
+  expect(container.querySelector('[aria-busy="true"]')).not.toBeNull();
   expect(container.querySelector('video, audio')).toBeNull();
-  expect(container.textContent).not.toContain('Perfil publicado');
+  expect(container.textContent?.trim()).toBe('');
   const images = Array.from(container.querySelectorAll('img'));
   expect(images).toHaveLength(1);
   expect(images[0].getAttribute('src')).toBe('/assets/platform-logo.png');

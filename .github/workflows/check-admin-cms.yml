@@ -28,8 +28,8 @@ jobs:
           bun install --frozen-lockfile
       - name: Check migration logic without credentials or network
         run: node --test scripts/legacy-media.test.mjs
-      - name: Validate profile saves, image optimization, comments and action URLs
-        run: bun test tests/creator-save.test.ts tests/image-optimization.test.ts tests/managed-comments.test.ts tests/action-links.test.ts
+      - name: Validate profile saves, media, comments and checkout versions
+        run: bun test tests/creator-save.test.ts tests/image-optimization.test.ts tests/managed-comments.test.ts tests/action-links.test.ts tests/page-variants.test.ts tests/cover-media.test.ts
       - name: Check application types
         run: bun run lint
       - name: Build production bundle
@@ -41,11 +41,12 @@ jobs:
           bun test tests/default-ui.test.tsx tests/content-model.test.ts
       - name: Install isolated browser test tooling
         run: bun add --dev happy-dom
-      - name: Verify age consent, media playback and published profile readiness
+      - name: Verify age consent, media playback, profile readiness and checkout entry
         run: |
           bun test tests/age-consent.test.ts
           bun test tests/media-preview.test.tsx
           bun test tests/platform-readiness.test.tsx
+          bun test tests/checkout-entry.test.tsx
       - name: Install isolated security test tooling
         run: |
           bun add --dev @firebase/rules-unit-testing firebase-tools

@@ -1,6 +1,7 @@
 import React, { lazy, Suspense, useState } from 'react';
 import { AgeVerificationModal } from './components/AgeVerificationModal';
 import { hasAgeConsent } from './utils/ageConsent';
+import { PlatformSkeleton } from './components/PlatformSkeleton';
 
 export type PageMode = 'login-first' | 'direct-pay' | 'teaser-promo';
 export type ActiveView = 'feed' | 'messages' | 'comments' | 'checkout';
@@ -16,11 +17,7 @@ export default function App() {
   }
 
   return (
-    <Suspense fallback={
-      <main className="min-h-screen grid place-items-center bg-slate-950 px-6 text-white" aria-busy="true">
-        <p className="text-sm text-slate-300" role="status">A abrir a plataforma…</p>
-      </main>
-    }>
+    <Suspense fallback={<PlatformSkeleton />}>
       <PlatformApp />
     </Suspense>
   );

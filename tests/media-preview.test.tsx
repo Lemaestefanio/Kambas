@@ -20,8 +20,8 @@ class ObservedViewport {
   unobserve(target: Element) { this.targets.delete(target); }
   disconnect() { this.targets.clear(); }
   takeRecords() { return []; }
-  emit(isIntersecting: boolean) {
-    const entries = [...this.targets].map(target => ({ target, isIntersecting, intersectionRatio: isIntersecting ? 1 : 0 }));
+  emit(isIntersecting: boolean, intersectionRatio = isIntersecting ? 1 : 0) {
+    const entries = [...this.targets].map(target => ({ target, isIntersecting, intersectionRatio }));
     if (entries.length) this.callback(entries as IntersectionObserverEntry[], this as unknown as IntersectionObserver);
   }
 }
@@ -65,9 +65,9 @@ afterAll(() => {
 const mediaUrl = 'https://media.example/paid-original.mp4';
 const previewUrl = 'https://media.example/preview.mp4';
 const posterUrl = 'https://media.example/poster.webp';
-async function renderPreview(settings: React.ComponentProps<typeof MediaPreview>['settings'] = {}, kind: 'image' | 'video' = 'video') {
+async function renderPreview(settings: React.ComponentProps<typeof MediaPreview>['settings'] = {}, kind: 'image' | 'video' = 'video', autoPlay: boolean | 'default' = false) {
   root = createRoot(container);
-  await act(async () => { root!.render(<MediaPreview kind={kind} src={mediaUrl} poster={posterUrl} alt="Media de teste" settings={settings} />); });
+  await act(async () => { root!.render(<MediaPreview kind={kind} src={mediaUrl} poster={posterUrl} alt="Media de teste" settings={settings} autoPlay={autoPlay === 'default' ? undefined : autoPlay} />); });
 }
 async function enterViewport() {
   await act(async () => { [...ObservedViewport.instances].forEach(observer => observer.emit(true)); });
@@ -109,7 +109,7 @@ describe('administrator media visibility and audio policy', () => {
 });
 
 describe('preview network and playback boundaries', () => {
-  test('initial HTML exposes neither video nor poster sources and never autoplays', () => {
+  test('initial HTML exposes neither video nor poster sources before viewport observation', () => {
     const html = renderToStaticMarkup(<MediaPreview kind="video" src={mediaUrl} poster={posterUrl} alt="Teste" settings={{ previewUrl }} />);
     expect(html).toContain('preload="none"');
     expect(html).not.toContain('src=');
@@ -196,7 +196,7 @@ describe('preview network and playback boundaries', () => {
   test('local video blobs are not read from IndexedDB until play is requested', async () => {
     root = createRoot(container);
     await act(async () => {
-      root!.render(<MediaPreview kind="video" src="idb://local-video" alt="Prévia local" settings={{ visibility: 'public' }} />);
+      root!.render(<MediaPreview kind="video" src="idb://local-video" alt="Prévia local" settings={{ visibility: 'public' }} autoPlay={false} />);
     });
     await enterViewport();
     expect(resolveMedia).not.toHaveBeenCalled();
@@ -204,6 +204,99 @@ describe('preview network and playback boundaries', () => {
     await click('Reproduzir prévia');
     expect(resolveMedia.mock.calls.map(([source]) => source)).toEqual(['idb://local-video']);
     expect(container.querySelector('video')!.getAttribute('src')).toBe('blob:https://preview.example/local-video');
+    expect(play).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe('silent previews in the visible viewport', () => {
+  for (const visibility of ['public', 'blurred'] as const) {
+    test(`${visibility} starts silently only after at least 20 percent is visible`, async () => {
+      await renderPreview({ visibility, previewUrl }, 'video', 'default');
+      const video = container.querySelector('video')!;
+      const near = ObservedViewport.instances.find(observer => !!observer.options.rootMargin)!;
+      const visible = ObservedViewport.instances.find(observer => !observer.options.rootMargin)!;
+      expect(visible.options.threshold).toBe(0.2);
+      await act(async () => { near.emit(true); visible.emit(true, 0.19); });
+      expect(video.getAttribute('poster')).toBe(posterUrl);
+      expect(video.getAttribute('src')).toBeNull();
+      expect(play).not.toHaveBeenCalled();
+      await act(async () => { visible.emit(true, 0.2); });
+      expect(video.getAttribute('src')).toBe(visibility === 'public' ? mediaUrl : previewUrl);
+      expect(video.muted).toBe(true);
+      expect(play).toHaveBeenCalledTimes(1);
+    });
+  }
+
+  test('leaving the viewport or hiding the tab removes the source; every automatic return is muted', async () => {
+    await renderPreview({ visibility: 'public' }, 'video', 'default');
+    await enterViewport();
+    const video = container.querySelector('video')!;
+    const visible = ObservedViewport.instances.find(observer => !observer.options.rootMargin)!;
+    await click('Ativar som da prévia');
+    expect(video.muted).toBe(false);
+    await act(async () => { visible.emit(false); });
+    expect(video.getAttribute('src')).toBeNull();
+    expect(video.muted).toBe(true);
+    await act(async () => { visible.emit(true); });
+    expect(video.getAttribute('src')).toBe(mediaUrl);
+    expect(video.muted).toBe(true);
+    expect(play).toHaveBeenCalledTimes(2);
+    await act(async () => {
+      Object.defineProperty(document, 'hidden', { configurable: true, value: true });
+      document.dispatchEvent(new Event('visibilitychange'));
+    });
+    expect(video.getAttribute('src')).toBeNull();
+    await act(async () => {
+      Object.defineProperty(document, 'hidden', { configurable: true, value: false });
+      document.dispatchEvent(new Event('visibilitychange'));
+    });
+    expect(video.getAttribute('src')).toBe(mediaUrl);
+    expect(video.muted).toBe(true);
+    expect(play).toHaveBeenCalledTimes(3);
+  });
+
+  test('a manual pause remains paused while the same preview stays visible', async () => {
+    await renderPreview({ visibility: 'public' }, 'video', 'default');
+    await enterViewport();
+    await click('Pausar vídeo');
+    await enterViewport();
+    expect(container.querySelector('[aria-label="Reproduzir prévia"]')).not.toBeNull();
+    expect(play).toHaveBeenCalledTimes(1);
+  });
+
+  test('blocked automatic playback offers a play action without a false media error', async () => {
+    play.mockImplementationOnce(() => Promise.reject(new Error('Autoplay blocked')));
+    await renderPreview({ visibility: 'public' }, 'video', 'default');
+    await enterViewport();
+    expect(container.querySelector('[aria-label="Reproduzir prévia"]')).not.toBeNull();
+    expect(container.textContent).not.toContain('Vídeo indisponível');
+    await click('Reproduzir prévia');
+    expect(play).toHaveBeenCalledTimes(2);
+  });
+
+  test('buffering uses an accessible busy state without loading copy', async () => {
+    await renderPreview({ visibility: 'public' }, 'video', 'default');
+    await enterViewport();
+    await act(async () => { container.querySelector('video')!.dispatchEvent(new Event('waiting')); });
+    expect(container.querySelector('button[aria-busy="true"]')).not.toBeNull();
+    expect(container.textContent?.toLowerCase()).not.toContain('carregar');
+    expect(container.textContent?.toLowerCase()).not.toContain('loading');
+  });
+
+  test('late media events cannot restart a preview after it leaves the viewport', async () => {
+    const playbackChanged = mock((_playing: boolean) => {});
+    root = createRoot(container);
+    await act(async () => {
+      root!.render(<MediaPreview kind="video" src={mediaUrl} alt="Prévia" settings={{ visibility: 'public' }} onPlaybackChange={playbackChanged} />);
+    });
+    await enterViewport();
+    const visible = ObservedViewport.instances.find(observer => !observer.options.rootMargin)!;
+    const video = container.querySelector('video')!;
+    await act(async () => { visible.emit(false); });
+    await act(async () => { video.dispatchEvent(new Event('play')); video.dispatchEvent(new Event('playing')); });
+    expect(video.getAttribute('src')).toBeNull();
+    expect(container.querySelector('[aria-label="Reproduzir prévia"]')).not.toBeNull();
+    expect(playbackChanged.mock.calls.at(-1)).toEqual([false]);
     expect(play).toHaveBeenCalledTimes(1);
   });
 });

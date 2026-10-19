@@ -72,6 +72,16 @@ export interface ManagedComment {
   postId?: string;
 }
 
+export interface PageVariant {
+  label: string;
+  checkoutMode: 'guest' | 'account';
+  bio?: string;
+  customPaymentButtonText?: string;
+  checkoutUrl?: string;
+  avatar?: string;
+  banner?: string;
+}
+
 export interface Creator {
   id: string;
   name: string;
@@ -110,6 +120,20 @@ export interface Creator {
   preferInternalCheckout?: boolean;
   actionLinks?: Partial<Record<'subscribe' | 'message' | 'tip' | 'signup' | 'login' | 'explore' | 'notifications', string>>;
   managedComments?: ManagedComment[];
+  commentsAccess?: 'public' | 'premium';
+  pageVariants?: { a?: PageVariant; b?: PageVariant };
+  cover?: {
+    type: 'image' | 'video';
+    positionX: number;
+    positionY: number;
+    visibility: 'public' | 'blurred';
+    blurAmount: number;
+    previewAudio: boolean;
+    presentation: 'video' | 'premiere';
+    startsAt?: string;
+    endsAt?: string;
+    viewerCount?: number;
+  };
 }
 
 export interface FAQItem {

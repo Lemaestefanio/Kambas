@@ -167,6 +167,156 @@ test('button configuration rejects unknown keys, non-strings and unsafe URL sche
   }
 });
 
+test('only administrators can configure comments access and page variants', async () => {
+  const pageVariants = {
+    a: { label: 'Página A', checkoutMode: 'guest', checkoutUrl: 'https://checkout.example/a', avatar: '/assets/avatar.jpg' },
+    b: { label: 'Página B', checkoutMode: 'account', bio: 'Descrição alternativa', customPaymentButtonText: 'Continuar', banner: 'https://images.example/banner.jpg' },
+  };
+  const patch = { commentsAccess: 'premium', pageVariants, updatedAt: Timestamp.now() };
+  const database = adminContext().firestore();
+  await assertSucceeds(setDoc(doc(database, 'creators', 'with-variants'), { ...creator('with-variants'), ...patch }));
+  await assertSucceeds(updateDoc(doc(database, 'creators', 'sandra'), patch));
+  await assertSucceeds(updateDoc(doc(database, 'creators', 'sandra'), { commentsAccess: 'public' }));
+  const published = (await getDoc(doc(visitorContext().firestore(), 'creators', 'sandra'))).data();
+  assert.deepEqual(published.pageVariants, pageVariants);
+  assert.equal(published.commentsAccess, 'public');
+
+  for (const context of [visitorContext(), anonymousContext(), memberContext(),
+    environment.authenticatedContext('false-admin-variant', { admin: 'true', firebase: google }),
+    environment.authenticatedContext('anonymous-admin-variant', { admin: true, firebase: { sign_in_provider: 'anonymous', identities: {} } }),
+  ]) {
+    const unauthorized = context.firestore();
+    await assertFails(setDoc(doc(unauthorized, 'creators', 'unauthorized-variant'), { ...creator('unauthorized-variant'), ...patch }));
+    await assertFails(updateDoc(doc(unauthorized, 'creators', 'sandra'), { commentsAccess: 'premium' }));
+    await assertFails(updateDoc(doc(unauthorized, 'creators', 'sandra'), { pageVariants }));
+  }
+});
+
+test('comment access accepts only its two string enum values on create and update', async () => {
+  const database = adminContext().firestore();
+  for (const commentsAccess of ['public', 'premium']) {
+    await assertSucceeds(setDoc(doc(database, 'creators', 'valid-access'), { ...creator('valid-access'), commentsAccess }));
+    await assertSucceeds(updateDoc(doc(database, 'creators', 'sandra'), { commentsAccess }));
+  }
+  for (const commentsAccess of [null, true, 1, [], {}, '', 'vip', 'Premium']) {
+    await assertFails(setDoc(doc(database, 'creators', 'invalid-access'), { ...creator('invalid-access'), commentsAccess }));
+    await assertFails(updateDoc(doc(database, 'creators', 'sandra'), { commentsAccess }));
+  }
+});
+
+test('page variants allow optional A or B configurations and inclusive field limits', async () => {
+  const database = adminContext().firestore();
+  const variant = {
+    label: 'a'.repeat(120), checkoutMode: 'guest', bio: 'b'.repeat(20000),
+    customPaymentButtonText: 'c'.repeat(200), checkoutUrl: '/'.padEnd(4096, 'd'),
+    avatar: '/assets/'.padEnd(4096, 'a'), banner: 'https://images.example/banner.jpg',
+  };
+  for (const pageVariants of [{}, { a: variant }, { b: variant },
+    { a: { label: '', checkoutMode: 'account', checkoutUrl: '', avatar: '', banner: '', bio: '', customPaymentButtonText: '' }, b: variant },
+  ]) {
+    await assertSucceeds(setDoc(doc(database, 'creators', 'bounded-variants'), { ...creator('bounded-variants'), pageVariants }));
+    await assertSucceeds(updateDoc(doc(database, 'creators', 'sandra'), { pageVariants }));
+  }
+});
+
+test('page variants reject malformed maps, missing required fields and unexpected keys', async () => {
+  const database = adminContext().firestore();
+  const valid = { label: 'Página A', checkoutMode: 'guest' };
+  const invalidVariants = [
+    null, [], 'invalid', { c: valid }, { a: null }, { b: [] }, { a: 'invalid' },
+    { a: {} }, { a: { label: 'Sem modo' } }, { a: { checkoutMode: 'account' } },
+    { a: { ...valid, label: 7 } }, { a: { ...valid, label: 'x'.repeat(121) } },
+    { b: { ...valid, checkoutMode: 'premium' } }, { a: { ...valid, checkoutMode: true } },
+    { a: { ...valid, admin: true } }, { b: { ...valid, unknown: 'extra' } },
+    { a: { ...valid, bio: 9 } }, { b: { ...valid, bio: 'x'.repeat(20001) } },
+    { a: { ...valid, customPaymentButtonText: null } }, { a: { ...valid, customPaymentButtonText: 'x'.repeat(201) } },
+  ];
+  for (const pageVariants of invalidVariants) {
+    await assertFails(setDoc(doc(database, 'creators', 'invalid-variant'), { ...creator('invalid-variant'), pageVariants }));
+    await assertFails(updateDoc(doc(database, 'creators', 'sandra'), { pageVariants }));
+  }
+  await assertFails(updateDoc(doc(database, 'creators', 'sandra'), { pageVariants: { a: valid }, unknownVariantField: true }));
+});
+
+test('variant URLs reject unsafe schemes, types and oversized values on create and update', async () => {
+  const database = adminContext().firestore();
+  const valid = { label: 'Página A', checkoutMode: 'guest' };
+  const badFields = [
+    { checkoutUrl: 7 }, { checkoutUrl: null }, { checkoutUrl: 'javascript:alert(1)' },
+    { checkoutUrl: '//outside.example' }, { checkoutUrl: 'http://checkout.example' },
+    { checkoutUrl: 'https://checkout.example/with space' }, { checkoutUrl: '/'.padEnd(4097, 'x') },
+    { avatar: 'blob:https://example/temporary' }, { avatar: 'data:image/png;base64,AA' },
+    { avatar: true }, { banner: null }, { banner: 'idb://local-only' },
+    { banner: '/assets/'.padEnd(4097, 'x') },
+  ];
+  for (const extra of badFields) {
+    const pageVariants = { a: { ...valid, ...extra } };
+    await assertFails(setDoc(doc(database, 'creators', 'invalid-variant-url'), { ...creator('invalid-variant-url'), pageVariants }));
+    await assertFails(updateDoc(doc(database, 'creators', 'sandra'), { pageVariants }));
+  }
+});
+
+test('a valid page variant cannot be changed to invalid nested values through update paths', async () => {
+  const database = adminContext().firestore();
+  const reference = doc(database, 'creators', 'sandra');
+  await assertSucceeds(updateDoc(reference, { pageVariants: { a: { label: 'Página A', checkoutMode: 'guest' } } }));
+  await assertFails(updateDoc(reference, { 'pageVariants.a.checkoutMode': 'admin' }));
+  await assertFails(updateDoc(reference, { 'pageVariants.a.label': 'x'.repeat(121) }));
+  await assertFails(updateDoc(reference, { 'pageVariants.a.unknownField': true }));
+  await assertFails(updateDoc(reference, { 'pageVariants.c': { label: 'Terceira', checkoutMode: 'guest' } }));
+  await assertSucceeds(updateDoc(reference, { 'pageVariants.a.checkoutMode': 'account' }));
+});
+
+test('only administrators can create and update validated cover presentation settings', async () => {
+  const cover = {
+    type: 'video', positionX: 0, positionY: 100, visibility: 'blurred',
+    blurAmount: 12, previewAudio: false, presentation: 'premiere',
+    startsAt: '2026-10-19T18:00:00.000Z', endsAt: '2026-10-19T20:00:00+01:00', viewerCount: 10000000,
+  };
+  const database = adminContext().firestore();
+  await assertSucceeds(setDoc(doc(database, 'creators', 'valid-cover'), { ...creator('valid-cover'), cover }));
+  await assertSucceeds(updateDoc(doc(database, 'creators', 'sandra'), { cover }));
+  await assertSucceeds(updateDoc(doc(database, 'creators', 'sandra'), {
+    cover: { type: 'image', positionX: 12.5, positionY: 50, visibility: 'public', blurAmount: 2, previewAudio: true, presentation: 'video', viewerCount: 0 },
+  }));
+  for (const context of [visitorContext(), anonymousContext(), memberContext()]) {
+    await assertFails(setDoc(doc(context.firestore(), 'creators', 'unauthorized-cover'), { ...creator('unauthorized-cover'), cover }));
+    await assertFails(updateDoc(doc(context.firestore(), 'creators', 'sandra'), { cover }));
+  }
+});
+
+test('cover validation rejects malformed values, extra fields and out-of-range numbers on create and update', async () => {
+  const database = adminContext().firestore();
+  const valid = { type: 'image', positionX: 50, positionY: 50, visibility: 'public', blurAmount: 6, previewAudio: false, presentation: 'video' };
+  const invalid = [
+    null, [], 'invalid', {}, { ...valid, unknownField: true },
+    { ...valid, type: 'live' }, { ...valid, type: 1 }, { ...valid, visibility: 'private' },
+    { ...valid, positionX: -1 }, { ...valid, positionX: 101 }, { ...valid, positionY: '50' },
+    { ...valid, positionY: -0.1 }, { ...valid, positionY: 100.1 }, { ...valid, positionX: Number.NaN },
+    { ...valid, blurAmount: 1.99 }, { ...valid, blurAmount: 12.01 }, { ...valid, blurAmount: '6' },
+    { ...valid, previewAudio: 'false' }, { ...valid, presentation: 'live' },
+    { ...valid, viewerCount: -1 }, { ...valid, viewerCount: 10000001 }, { ...valid, viewerCount: 1.5 },
+    { ...valid, viewerCount: '100' }, { ...valid, viewerCount: null },
+    { ...valid, startsAt: '' }, { ...valid, startsAt: 'amanhã' }, { ...valid, startsAt: 123 },
+    { ...valid, startsAt: '2026-10-19T18:00:00' }, { ...valid, startsAt: '2026-13-19T18:00:00Z' },
+    { ...valid, endsAt: '2026-10-19T25:00:00Z' }, { ...valid, endsAt: 'x'.repeat(41) },
+  ];
+  for (const key of Object.keys(valid)) {
+    const missing = { ...valid };
+    delete missing[key];
+    invalid.push(missing);
+  }
+  for (const cover of invalid) {
+    await assertFails(setDoc(doc(database, 'creators', 'invalid-cover'), { ...creator('invalid-cover'), cover }));
+    await assertFails(updateDoc(doc(database, 'creators', 'sandra'), { cover }));
+  }
+  const reference = doc(database, 'creators', 'sandra');
+  await assertSucceeds(updateDoc(reference, { cover: valid }));
+  await assertFails(updateDoc(reference, { 'cover.positionX': 101 }));
+  await assertFails(updateDoc(reference, { 'cover.role': 'admin' }));
+  await assertFails(updateDoc(reference, { 'cover.previewAudio': 'true' }));
+});
+
 test('Storage allows public media reads and only administrator media writes', async () => {
   const objectPath = 'public/administrator/photo.jpg';
   const adminStorage = adminContext().storage();

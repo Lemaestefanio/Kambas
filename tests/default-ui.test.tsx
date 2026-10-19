@@ -114,6 +114,35 @@ test('the shared brand uses the supplied image with accessible text and stable p
   expect(html).not.toContain('<svg');
 });
 
+describe('cover scheduling and current video presentation', () => {
+  test('a future premiere exposes its schedule without mounting or preloading the video', async () => {
+    const { CoverMedia } = await current('components/CoverMedia.tsx');
+    const creator = {
+      ...creators[0], banner: '/assets/scheduled-poster.webp', bannerVideo: 'https://media.example/upcoming.mp4',
+      cover: { type: 'video', presentation: 'premiere', startsAt: '2026-10-20T19:00:00Z' },
+    };
+    const html = renderToStaticMarkup(<CoverMedia creator={creator} alt="Capa de teste" />);
+    expect(html).toContain('data-cover-state="scheduled"');
+    expect(html).toContain('<time');
+    expect(html).toContain('2026-10-20T19:00:00.000Z');
+    expect(html).not.toContain('<video');
+    expect(html).not.toContain('https://media.example/upcoming.mp4');
+  });
+
+  test('an active video cover never flashes the previous photograph as its poster', async () => {
+    const { CoverMedia } = await current('components/CoverMedia.tsx');
+    const creator = {
+      ...creators[0], banner: '/assets/previous-photo.webp', bannerVideo: 'https://media.example/current.mp4',
+      cover: { type: 'video', presentation: 'video' },
+    };
+    const html = renderToStaticMarkup(<CoverMedia creator={creator} alt="Capa de teste" />);
+    expect(html).toContain('data-cover-state="video"');
+    expect(html).toContain('<video');
+    expect(html).not.toContain('/assets/previous-photo.webp');
+    expect(html).not.toContain('https://media.example/current.mp4');
+  });
+});
+
 // These open states are not visible in an initial App render. Their text was
 // also moved into the CMS, so compare them without invoking a browser event.
 describe('public dialogs retain their approved default markup', () => {
@@ -160,7 +189,7 @@ describe('administrative sharing links retain route and creator selection', () =
     });
   }
 
-  test('a story opens with controls but does not fetch its video before play', async () => {
+  test('a story initial HTML has controls without exposing a video source', async () => {
     const { StoryViewerModal } = await current('components/StoryViewerModal.tsx');
     const creator = {
       ...creators[0],
@@ -209,6 +238,25 @@ describe('published comments have an explicit source and post association', () =
       expect(html).not.toContain('Comentário de outra publicação');
       expect(html.match(/Comentário demonstrativo/g)).toHaveLength(1);
       expect(html.match(/<article\b/g)).toHaveLength(2);
+    });
+
+    test(`${name} does not reveal restricted comments merely because a visitor signed in`, async () => {
+      const component = (await current(`components/${name}.tsx`))[name];
+      const creator = {
+        ...creators[0], commentsAccess: 'premium',
+        managedComments: [{ id: 'restricted', name: 'Autor reservado', text: 'Conteúdo reservado de teste', kind: 'real' }],
+      };
+      const html = renderToStaticMarkup(<Provider>{React.createElement(component, {
+        creator, isOpen: true, postCaption: '',
+        user: { uid: 'signed-in-user', displayName: 'Conta confirmada', isAnonymous: false },
+        onClose() {}, onBack() {}, onUnlockClick() {},
+      })}</Provider>);
+      expect(html).toContain('aria-label="Comentários premium"');
+      expect(html).toContain('Comentários só para premium');
+      expect(html).not.toContain('Conteúdo reservado de teste');
+      expect(html).not.toContain('Autor reservado');
+      expect(html).not.toContain('<article');
+      expect(html).not.toContain('<form');
     });
   }
 });

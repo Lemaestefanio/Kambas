@@ -3,6 +3,11 @@ import type { Creator, CreatorPost, ManagedComment } from '../types';
 export const MANAGED_COMMENT_LIMIT = 100;
 const allowedKeys = new Set(['id', 'name', 'text', 'time', 'kind', 'postId']);
 
+/** Presentation only: authentication is not proof of an active paid subscription. */
+export function areCommentsRestricted(creator: Pick<Creator, 'commentsAccess'>): boolean {
+  return creator.commentsAccess !== undefined && creator.commentsAccess !== 'public';
+}
+
 /** Reject incomplete drafts before they become shared public content. */
 export function validateManagedComments(value: unknown, posts: ReadonlyArray<Pick<CreatorPost, 'id'>> = []): string | null {
   if (value === undefined) return null;
@@ -36,7 +41,11 @@ export function resolveCommentPostId(creator: Pick<Creator, 'posts'>, postId?: s
 }
 
 /** No built-in testimonials. Missing or empty configuration means an empty public thread. */
-export function getManagedComments(creator: Pick<Creator, 'managedComments' | 'posts'>, postId?: string, postCaption?: string): ManagedComment[] {
+export function getManagedComments(creator: Pick<Creator, 'managedComments' | 'posts' | 'commentsAccess'>, postId?: string, postCaption?: string): ManagedComment[] {
+  // The public CMS has no server-verified subscriber entitlement. Never unlock here
+  // from a Google login, a local flag or a payment redirect. Restricted comments
+  // remain hidden until a private, authorized backend is implemented.
+  if (areCommentsRestricted(creator)) return [];
   const selectedPost = resolveCommentPostId(creator, postId, postCaption);
   if (!Array.isArray(creator.managedComments)) return [];
   const seen = new Set<string>();

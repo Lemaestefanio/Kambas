@@ -8,9 +8,12 @@ import { COPY_FIELDS, DEFAULT_SITE_SETTINGS } from '../cms/defaults';
 import { useSiteContent } from '../cms/SiteContent';
 import { AdminPageLinks } from '../cms/AdminPageLinks';
 import { CommentsEditor } from '../cms/CommentsEditor';
-import { BANK_FIELDS, FAQ_FIELD, PROFILE_SECTIONS, StructuredField, StructuredFields, itemId } from '../cms/editor';
+import { VariantsEditor } from '../cms/VariantsEditor';
+import { CoverEditor, validateCover } from '../cms/CoverEditor';
+import { BANK_FIELDS, FAQ_FIELD, PROFILE_SECTIONS, StructuredField, StructuredFields, itemId, validatePublications } from '../cms/editor';
 import { validateManagedComments } from '../utils/managedComments';
 import { safeActionUrl } from '../utils/actionLinks';
+import { validatePageVariants } from '../utils/pageVariants';
 import { deleteCreatorFromFirestore, onAdminAuthChange, publishInitialContent, saveCreatorToFirestore, saveSiteSettings, signInWithGoogle, signOutUser, uploadAdminMedia } from '../firebase';
 
 interface AdminPanelModalProps {
@@ -51,7 +54,7 @@ export const AdminPanelModal: React.FC<AdminPanelModalProps> = ({ isOpen, onClos
   const [isAdmin, setIsAdmin] = useState(false);
   const [user, setUser] = useState<User | null>(null);
   const [tab, setTab] = useState<'profiles' | 'copy' | 'faqs' | 'bank' | 'setup'>('profiles');
-  const [section, setSection] = useState('profile');
+  const [section, setSection] = useState('feed');
   const [draft, setDraft] = useState<Creator | null>(null);
   const [newProfile, setNewProfile] = useState(false);
   const [profileDirty, setProfileDirty] = useState(false);
@@ -119,6 +122,12 @@ export const AdminPanelModal: React.FC<AdminPanelModalProps> = ({ isOpen, onClos
     if (!draft.name.trim() || !draft.shortName.trim() || !draft.handle.trim()) throw new Error('Preenche o nome, o nome curto e o nome de utilizador.');
     if (!Number.isFinite(draft.age) || draft.age < 18) throw new Error('A idade do perfil tem de ser igual ou superior a 18 anos.');
     if (draft.plans.length === 0) throw new Error('Adiciona pelo menos um plano antes de publicar o perfil.');
+    const publicationError = validatePublications(draft.posts, creators.find((creator) => creator.id === draft.id)?.posts || []);
+    if (publicationError) { setSection('feed'); throw new Error(publicationError); }
+    const coverError = validateCover(draft);
+    if (coverError) { setSection('cover'); throw new Error(coverError); }
+    const variantsError = validatePageVariants(draft.pageVariants);
+    if (variantsError) { setSection('variants'); throw new Error(variantsError); }
     const commentsError = validateManagedComments(draft.managedComments, draft.posts);
     if (commentsError) throw new Error(commentsError);
     for (const [key, value] of Object.entries(draft.actionLinks || {})) {
@@ -160,6 +169,7 @@ export const AdminPanelModal: React.FC<AdminPanelModalProps> = ({ isOpen, onClos
   const matchingProfiles = creators.filter((creator) => `${creator.name} ${creator.handle} ${creator.city}`.toLocaleLowerCase('pt').includes(normalizedProfileSearch)
     && (profileFilter === 'all' || (profileFilter === 'online' ? creator.isOnline : !creator.isOnline)));
   const activeSection = PROFILE_SECTIONS[section] || PROFILE_SECTIONS.profile;
+  const profileSections = ['feed', 'cover', 'gallery', 'audio', 'stories', 'comments', 'plans', 'links', 'variants', 'paywall', 'profile'].map((id) => [id, PROFILE_SECTIONS[id]] as const).filter(([, config]) => Boolean(config));
   const editingSettings = tab === 'copy' || tab === 'faqs' || tab === 'bank';
   const currentDirty = tab === 'profiles' ? profileDirty : editingSettings ? settingsDirty : profileDirty || settingsDirty;
 
@@ -193,7 +203,7 @@ export const AdminPanelModal: React.FC<AdminPanelModalProps> = ({ isOpen, onClos
           <div className="hidden gap-1 overflow-x-auto sm:flex">{adminTabs.map(({ id, label, icon: Icon }) => <button key={id} type="button" aria-current={tab === id ? 'page' : undefined} disabled={busy} onClick={() => setTab(id)} className={`flex items-center gap-2 whitespace-nowrap rounded-xl px-3 py-2.5 text-sm font-medium transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-pink-400 ${tab === id ? 'bg-pink-500/15 text-pink-200' : 'text-slate-400 hover:bg-white/5 hover:text-slate-200'}`}><Icon size={16} />{label}</button>)}</div>
         </nav>
         <div className="shrink-0 space-y-2 px-4 pt-3 sm:px-6" aria-live="polite">
-          {contentError && <p role="alert" className="rounded-lg bg-amber-500/10 px-4 py-3 text-sm text-amber-200">Não foi possível carregar o conteúdo remoto: {contentError}</p>}
+          {contentError && <p role="alert" className="rounded-lg bg-amber-500/10 px-4 py-3 text-sm text-amber-200">Não foi possível sincronizar o conteúdo: {contentError}</p>}
           {error && <p role="alert" className="rounded-lg bg-rose-500/10 px-4 py-3 text-sm text-rose-200">{error}</p>}
           {success && <p role="status" className="flex items-start gap-2 rounded-lg bg-emerald-500/10 px-4 py-3 text-sm text-emerald-200"><CheckCircle2 size={17} className="mt-0.5 shrink-0" />{success}</p>}
         </div>
@@ -225,12 +235,12 @@ export const AdminPanelModal: React.FC<AdminPanelModalProps> = ({ isOpen, onClos
                   <div className="mt-4 grid grid-cols-3 gap-2">{[[draft.posts.length, 'Publicações'], [draft.galleryPhotos.length, 'Fotos na galeria'], [draft.plans.length, 'Planos']].map(([count, label]) => <div key={label} className="rounded-xl bg-black/15 px-3 py-2"><span className="block text-lg font-semibold">{count}</span><span className="text-[11px] text-slate-400">{label}</span></div>)}</div>
                 </div>
                 <nav aria-label="Abas do perfil">
-                  <label className="block text-xs font-medium text-slate-400 lg:hidden">O que queres editar?<select aria-label="Secção do perfil" value={section} onChange={(event) => setSection(event.target.value)} className="mt-1.5 w-full rounded-xl border border-white/15 bg-[#11131d] px-3 py-3 text-sm text-white">{Object.entries(PROFILE_SECTIONS).map(([id, config]) => <option key={id} value={id}>{config.label}</option>)}</select></label>
-                  <div className="hidden grid-cols-3 gap-2 lg:grid">{Object.entries(PROFILE_SECTIONS).map(([id, config]) => <button key={id} type="button" aria-pressed={section === id} onClick={() => setSection(id)} className={`min-w-0 rounded-xl border px-3 py-2.5 text-left text-xs font-medium leading-relaxed transition-colors ${section === id ? 'border-pink-400/50 bg-pink-500/15 text-pink-100' : 'border-white/10 text-slate-400 hover:bg-white/5'}`}>{config.label}</button>)}</div>
+                  <label className="block text-xs font-medium text-slate-400 lg:hidden">O que queres gerir?<select aria-label="Secção do perfil" value={section} onChange={(event) => setSection(event.target.value)} className="mt-1.5 w-full rounded-xl border border-white/15 bg-[#11131d] px-3 py-3 text-sm text-white">{profileSections.map(([id, config]) => <option key={id} value={id}>{config.label}</option>)}</select></label>
+                  <div className="hidden flex-wrap gap-2 lg:flex">{profileSections.map(([id, config]) => <button key={id} type="button" aria-pressed={section === id} onClick={() => setSection(id)} className={`min-w-0 rounded-xl border px-3 py-2 text-left text-xs font-medium leading-relaxed transition-colors ${section === id ? 'border-pink-400/50 bg-pink-500/15 text-pink-100' : 'border-white/10 text-slate-400 hover:bg-white/5'}`}>{config.label}</button>)}</div>
                 </nav>
                 <div className="space-y-5 rounded-2xl border border-white/10 bg-white/[0.015] p-4 sm:p-5">
                   <div className="border-b border-white/10 pb-4"><h3 className="text-lg font-semibold">{activeSection.label}</h3>{activeSection.hint && <p className="mt-2 text-xs leading-relaxed text-slate-400">{activeSection.hint}</p>}</div>
-                  {section === 'comments' ? <CommentsEditor creator={draft} onChange={updateDraft} disabled={busy} /> : <>
+                  {section === 'comments' ? <CommentsEditor creator={draft} onChange={updateDraft} disabled={busy} /> : section === 'variants' ? <VariantsEditor creator={draft} onChange={updateDraft} disabled={busy} /> : section === 'cover' ? <CoverEditor creator={draft} onChange={updateDraft} onUpload={upload} disabled={busy} /> : <>
                     {section === 'links' && <AdminPageLinks creatorId={draft.id} creatorName={draft.name} isNew={newProfile} hasChanges={profileDirty} />}
                     <StructuredFields fields={activeSection.fields} value={draft} onChange={updateDraft} onUpload={upload} path="profile" />
                   </>}
@@ -250,7 +260,7 @@ export const AdminPanelModal: React.FC<AdminPanelModalProps> = ({ isOpen, onClos
           {tab === 'setup' && <section className="mx-auto max-w-2xl space-y-5 rounded-xl border border-white/10 p-6"><h2 className="text-xl font-semibold">Publicar o conteúdo original</h2><p className="text-sm leading-relaxed text-slate-300">Esta ação adiciona ao banco de dados os perfis originais que ainda não existem e publica os textos iniciais se não houver uma configuração guardada.</p><p className="text-sm leading-relaxed text-slate-400">Os documentos que já existem são preservados. Perfis originais eliminados anteriormente voltam a ser adicionados; usa esta ação apenas quando quiseres recuperar esse conteúdo.</p><button type="button" className={primaryClass} onClick={() => { if (window.confirm('Adicionar os perfis originais que faltam e os textos iniciais, preservando os documentos existentes?')) void run(async () => { await publishInitialContent(clone(CREATORS), clone(DEFAULT_SITE_SETTINGS)); setSuccess('Publicação inicial concluída. Os documentos que já existiam foram preservados.'); }); }}><Save size={16} /> Publicar conteúdo original</button></section>}
         </fieldset></main>
         <footer className="flex shrink-0 flex-wrap items-center justify-between gap-3 border-t border-white/10 bg-[#10121d] px-4 py-3 shadow-[0_-8px_24px_rgba(0,0,0,0.15)] sm:px-6 sm:py-4">
-          <div className="min-w-0 flex-1"><p role="status" className={`flex items-center gap-2 text-xs font-medium ${currentDirty ? 'text-amber-200' : 'text-slate-300'}`}>{busy ? <LoaderCircle size={15} className="shrink-0 animate-spin" /> : currentDirty ? <span className="h-2 w-2 shrink-0 rounded-full bg-amber-400" /> : <CheckCircle2 size={15} className="shrink-0 text-emerald-400" />}{busy ? 'A guardar / enviar ficheiro…' : contentLoading ? 'A carregar o conteúdo…' : currentDirty ? 'Alterações por guardar' : 'Tudo guardado'}</p><p className="mt-1 truncate text-[11px] text-slate-500">{tab === 'profiles' ? draft?.name || 'Seleciona um perfil' : editingSettings ? 'Conteúdo partilhado por todos os perfis' : 'Configuração da publicação'}</p></div>
+          <div className="min-w-0 flex-1"><p role="status" className={`flex items-center gap-2 text-xs font-medium ${currentDirty ? 'text-amber-200' : 'text-slate-300'}`}>{busy ? <LoaderCircle size={15} className="shrink-0 animate-spin" /> : currentDirty ? <span className="h-2 w-2 shrink-0 rounded-full bg-amber-400" /> : <CheckCircle2 size={15} className="shrink-0 text-emerald-400" />}{busy ? 'A guardar / enviar ficheiro…' : contentLoading ? 'A sincronizar…' : currentDirty ? 'Alterações por guardar' : 'Tudo guardado'}</p><p className="mt-1 truncate text-[11px] text-slate-500">{tab === 'profiles' ? draft?.name || 'Seleciona um perfil' : editingSettings ? 'Conteúdo partilhado por todos os perfis' : 'Configuração da publicação'}</p></div>
           {tab === 'profiles' && settingsDirty && <button type="button" disabled={busy} onClick={() => setTab('copy')} className="text-xs text-amber-200 underline underline-offset-4">Textos por guardar</button>}
           {tab !== 'profiles' && profileDirty && <button type="button" disabled={busy} onClick={() => setTab('profiles')} className="text-xs text-amber-200 underline underline-offset-4">Perfil por guardar</button>}
           {tab === 'setup' && settingsDirty && <button type="button" disabled={busy} onClick={() => setTab('copy')} className="text-xs text-amber-200 underline underline-offset-4">Textos por guardar</button>}
