@@ -113,7 +113,7 @@ function normalizeMobileDialog(name: string, html: string) {
       const authPanel = name === 'AuthModal' && classes.includes('rounded-3xl') && classes.includes('max-w-md');
       const plansHeader = name === 'PlansModal' && classes.includes('px-5') && classes.includes('py-4') && classes.includes('border-b');
       classes = classes.filter(token => {
-        if (['mobile-overlay', 'mobile-dialog-panel', 'mobile-scroll', 'mobile-composer'].includes(token)) return false;
+        if (['plans-modal', 'plan-choice-row', 'plan-choice-price', 'mobile-overlay', 'mobile-dialog-panel', 'mobile-scroll', 'mobile-composer'].includes(token)) return false;
         if (overlay && ['backdrop-blur-sm', 'backdrop-blur-md', 'animate-fade-in', 'animate-fadeIn'].includes(token)) return false;
         if (authPanel && ['overflow-hidden', 'animate-scaleUp'].includes(token)) return false;
         if (plansHeader && token === 'shrink-0') return false;

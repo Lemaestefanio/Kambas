@@ -72,6 +72,8 @@ def probe(path: Path, ffprobe: str) -> dict:
     raw = json.loads(command([
         ffprobe, "-v", "error", "-protocol_whitelist", "file,pipe", "-show_format", "-show_streams", "-of", "json", str(path),
     ]))
+    if any(stream.get("codec_type") not in ("video", "audio") for stream in raw.get("streams", [])):
+        raise ValueError("Embedded subtitles or additional stream types require separate preservation; original retained.")
     videos = [stream for stream in raw.get("streams", [])
               if stream.get("codec_type") == "video" and not stream.get("disposition", {}).get("attached_pic")]
     if len(videos) != 1:

@@ -130,3 +130,28 @@ body {
     scroll-margin-block: 1rem;
   }
 }
+
+@media (max-width: 480px) {
+  .plan-choice-row {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 0.75rem;
+  }
+
+  .plan-choice-price {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.5rem;
+  }
+
+  .plan-choice-price > div {
+    flex-shrink: 0;
+    white-space: nowrap;
+  }
+
+  .plans-modal button[aria-label] {
+    min-height: 44px;
+    min-width: 44px;
+  }
+}

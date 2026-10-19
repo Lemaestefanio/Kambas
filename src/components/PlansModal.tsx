@@ -31,7 +31,7 @@ export const PlansModal: React.FC<PlansModalProps> = ({
   if (!isOpen || !activePlan) return null;
 
   return (
-    <div role="dialog" aria-modal="true" aria-label="Escolher plano" className="mobile-overlay fixed inset-0 z-[9999] flex items-end sm:items-center justify-center bg-black/80 p-0 sm:p-4">
+    <div role="dialog" aria-modal="true" aria-label="Escolher plano" className="plans-modal mobile-overlay fixed inset-0 z-[9999] flex items-end sm:items-center justify-center bg-black/80 p-0 sm:p-4">
       <div
         className="mobile-dialog-panel w-full sm:max-w-md bg-white rounded-t-3xl sm:rounded-2xl shadow-2xl flex flex-col max-h-[92dvh] border border-slate-200 overflow-hidden"
         onClick={(e) => e.stopPropagation()}
@@ -121,7 +121,7 @@ export const PlansModal: React.FC<PlansModalProps> = ({
                         : 'border-slate-200 bg-white hover:border-slate-300 hover:bg-slate-50/70'
                     }`}
                   >
-                    <div className="flex items-center justify-between">
+                    <div className="plan-choice-row flex items-center justify-between">
                       <div className="flex items-center gap-3">
                         <div
                           className={`w-5 h-5 rounded-full border-2 flex items-center justify-center transition-all ${
@@ -150,7 +150,7 @@ export const PlansModal: React.FC<PlansModalProps> = ({
                         </div>
                       </div>
 
-                      <div className="text-right">
+                      <div className="plan-choice-price text-right">
                         <div className="flex items-center justify-end gap-1">
                           <span className="text-base font-extrabold text-slate-900 font-mono-nums">
                             {plan.price}
