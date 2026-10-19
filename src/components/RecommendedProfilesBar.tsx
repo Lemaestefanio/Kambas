@@ -1,3 +1,4 @@
+import { useSiteContent } from '../cms/SiteContent';
 import React from 'react';
 import { Flame, CheckCircle2, ChevronRight } from 'lucide-react';
 import { Creator } from '../types';
@@ -15,23 +16,24 @@ export const RecommendedProfilesBar: React.FC<RecommendedProfilesBarProps> = ({
   onSelectCreator,
   onOpenDirectory,
 }) => {
+  const { copy } = useSiteContent();
   return (
     <section className="w-full bg-white border-b border-slate-200/80 pt-3 pb-3">
       {/* Header with Title and Online Status */}
       <div className="flex items-center justify-between px-4 mb-2.5">
         <div className="flex items-center gap-1.5">
           <span className="text-xs font-bold text-slate-900 tracking-tight">
-            Perfis em Destaque em Luanda
+            {copy('home.featured.title')}
           </span>
           <span className="text-[10px] bg-sky-50 text-[#00aff0] font-bold px-2 py-0.5 rounded-full border border-sky-100">
-            {creators.length} Criadoras
+            {copy('home.featured.count', { count: creators.length })}
           </span>
         </div>
 
         <div className="flex items-center gap-2">
           <div className="flex items-center gap-1 text-[11px] text-emerald-600 font-semibold">
             <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-            <span>Online</span>
+            <span>{copy('home.featured.online')}</span>
           </div>
 
           {onOpenDirectory && (
@@ -39,7 +41,7 @@ export const RecommendedProfilesBar: React.FC<RecommendedProfilesBarProps> = ({
               onClick={onOpenDirectory}
               className="text-[11px] font-bold text-[#00aff0] hover:underline flex items-center gap-0.5"
             >
-              <span>Ver todas</span>
+              <span>{copy('home.featured.viewAll')}</span>
               <ChevronRight className="w-3 h-3" />
             </button>
           )}

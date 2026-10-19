@@ -1,7 +1,7 @@
+import { useSiteContent } from '../cms/SiteContent';
 import React, { useState } from 'react';
 import { X, Check, Copy, Smartphone, Building, ExternalLink, ShieldCheck, Clock, CheckCircle2, ArrowRight } from 'lucide-react';
 import { Plan, Creator } from '../types';
-import { BANK_DETAILS } from '../data/content';
 
 interface PaymentModalProps {
   plan: Plan | null;
@@ -18,7 +18,7 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
   onClose,
   onSuccess,
 }) => {
-  if (!isOpen || !plan) return null;
+  const { copy, settings } = useSiteContent();
 
   const [paymentMethod, setPaymentMethod] = useState<'express' | 'bank' | 'direct'>('express');
   const [phoneNumber, setPhoneNumber] = useState('');
@@ -46,6 +46,8 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
 
   const rawPhone = creator.whatsappNumber.replace(/[^0-9]/g, '');
 
+  if (!isOpen || !plan) return null;
+
   return (
     <div className="fixed inset-0 z-[10000] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-fade-in">
       <div className="relative w-full max-w-md bg-white rounded-2xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh] border border-slate-200">
@@ -59,7 +61,7 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
             />
             <div>
               <h3 className="text-sm font-bold text-slate-900">
-                Desbloquear Acesso · {creator.shortName}
+                {copy("overlay.payment-modal.029", { name: creator.shortName })}
               </h3>
               <p className="text-xs text-[#00aff0] font-bold font-mono">
                 {plan.duration} · {plan.price} 🇦🇴
@@ -70,7 +72,7 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
           <button
             onClick={onClose}
             className="p-1.5 text-slate-400 hover:text-slate-700 rounded-full hover:bg-slate-200 transition-colors"
-            aria-label="Fechar"
+            aria-label={copy("overlay.payment-modal.025")}
           >
             <X className="w-5 h-5" />
           </button>
@@ -85,45 +87,41 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
               </div>
 
               <div>
-                <h4 className="text-lg font-bold text-slate-900">Acesso Desbloqueado!</h4>
-                <p className="text-xs text-slate-500 mt-0.5">
-                  O teu pagamento foi confirmado com sucesso.
-                </p>
+                <h4 className="text-lg font-bold text-slate-900">{copy("overlay.payment-modal.001")}</h4>
+                <p className="text-xs text-slate-500 mt-0.5">{copy("overlay.payment-modal.002")}</p>
               </div>
 
               <div className="w-full bg-slate-50 p-3.5 rounded-xl border border-slate-200 text-left text-xs space-y-2">
                 <div className="flex justify-between text-slate-600">
-                  <span>Criadora:</span>
+                  <span>{copy("overlay.payment-modal.003")}</span>
                   <span className="font-bold text-slate-900">{creator.name}</span>
                 </div>
                 <div className="flex justify-between text-slate-600">
-                  <span>Plano:</span>
+                  <span>{copy("overlay.payment-modal.004")}</span>
                   <span className="font-bold text-slate-900">{plan.duration}</span>
                 </div>
                 <div className="flex justify-between text-slate-600">
-                  <span>WhatsApp Pessoal:</span>
+                  <span>{copy("overlay.payment-modal.005")}</span>
                   <span className="font-mono font-bold text-emerald-600">{creator.whatsappNumber}</span>
                 </div>
               </div>
 
               <a
                 href={`https://wa.me/${rawPhone}?text=${encodeURIComponent(
-                  `Olá ${creator.shortName}! Acabei de ativar o meu acesso ${plan.duration}. Como faço para agendar a nossa chamada de vídeo?`
+                  copy("overlay.payment-modal.027", { name: creator.shortName, duration: plan.duration })
                 )}`}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="w-full py-3 bg-[#25D366] hover:bg-[#20ba59] text-white font-bold text-xs rounded-full transition-all flex items-center justify-center gap-2 shadow-md"
               >
                 <Smartphone className="w-4 h-4" />
-                <span>Conversar no WhatsApp da {creator.shortName}</span>
+                <span>{copy("overlay.payment-modal.030", { name: creator.shortName })}</span>
               </a>
 
               <button
                 onClick={onClose}
                 className="w-full py-2 text-slate-500 text-xs font-semibold hover:text-slate-800"
-              >
-                Voltar às publicações
-              </button>
+              >{copy("overlay.payment-modal.006")}</button>
             </div>
           ) : (
             <>
@@ -139,7 +137,7 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
                   }`}
                 >
                   <Smartphone className="w-3.5 h-3.5" />
-                  <span>Multicaixa</span>
+                  <span>{copy("overlay.payment-modal.007")}</span>
                 </button>
 
                 <button
@@ -152,7 +150,7 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
                   }`}
                 >
                   <Building className="w-3.5 h-3.5" />
-                  <span>Transferência</span>
+                  <span>{copy("overlay.payment-modal.008")}</span>
                 </button>
 
                 <button
@@ -165,7 +163,7 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
                   }`}
                 >
                   <ExternalLink className="w-3.5 h-3.5" />
-                  <span>MeusKambas</span>
+                  <span>{copy("overlay.payment-modal.009")}</span>
                 </button>
               </div>
 
@@ -173,25 +171,23 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
               {paymentMethod === 'express' && (
                 <form onSubmit={handleExpressSubmit} className="space-y-3">
                   <div className="bg-slate-50 p-3 rounded-xl border border-slate-200 text-xs text-slate-600">
-                    <p className="font-semibold text-slate-900 mb-1">Pagamento Multicaixa Express:</p>
+                    <p className="font-semibold text-slate-900 mb-1">{copy("overlay.payment-modal.010")}</p>
                     <ol className="list-decimal list-inside space-y-0.5 text-slate-500 text-[11px]">
-                      <li>Digita o teu número associado ao Multicaixa.</li>
-                      <li>Recebes a notificação no teu telefone.</li>
-                      <li>Aprova a operação com o teu PIN secreto.</li>
+                      <li>{copy("overlay.payment-modal.011")}</li>
+                      <li>{copy("overlay.payment-modal.012")}</li>
+                      <li>{copy("overlay.payment-modal.013")}</li>
                     </ol>
                   </div>
 
                   <div>
-                    <label className="block text-xs font-semibold text-slate-700 mb-1">
-                      Número do Telemóvel (Angola)
-                    </label>
+                    <label className="block text-xs font-semibold text-slate-700 mb-1">{copy("overlay.payment-modal.014")}</label>
                     <div className="relative">
                       <div className="absolute inset-y-0 left-0 pl-3 flex items-center text-xs font-bold text-slate-400">
                         +244
                       </div>
                       <input
                         type="tel"
-                        placeholder="9xx xxx xxx"
+                        placeholder={copy("overlay.payment-modal.026")}
                         value={phoneNumber}
                         onChange={(e) => setPhoneNumber(e.target.value.replace(/[^0-9]/g, ''))}
                         maxLength={9}
@@ -209,11 +205,11 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
                     {isProcessing ? (
                       <>
                         <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                        <span>A processar no Multicaixa...</span>
+                        <span>{copy("overlay.payment-modal.015")}</span>
                       </>
                     ) : (
                       <>
-                        <span>Pagar {plan.price} via Multicaixa</span>
+                        <span>{copy("overlay.payment-modal.031", { price: plan.price })}</span>
                         <ArrowRight className="w-4 h-4" />
                       </>
                     )}
@@ -226,23 +222,23 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
                 <div className="space-y-3">
                   <div className="bg-slate-50 p-3 rounded-xl border border-slate-200 text-xs space-y-2">
                     <div className="flex justify-between">
-                      <span className="text-slate-500">Banco:</span>
-                      <span className="font-bold text-slate-900">{BANK_DETAILS.bankName}</span>
+                      <span className="text-slate-500">{copy("overlay.payment-modal.016")}</span>
+                      <span className="font-bold text-slate-900">{settings.bankDetails.bankName}</span>
                     </div>
 
                     <div className="flex justify-between">
-                      <span className="text-slate-500">Beneficiário:</span>
-                      <span className="font-medium text-slate-900">{BANK_DETAILS.beneficiary}</span>
+                      <span className="text-slate-500">{copy("overlay.payment-modal.017")}</span>
+                      <span className="font-medium text-slate-900">{settings.bankDetails.beneficiary}</span>
                     </div>
 
                     <div className="flex justify-between pt-1 border-t border-slate-200">
-                      <span className="text-slate-500">IBAN:</span>
+                      <span className="text-slate-500">{copy("overlay.payment-modal.018")}</span>
                       <div className="flex items-center gap-1.5">
                         <span className="font-mono font-bold text-[#00aff0] text-[11px]">
-                          {BANK_DETAILS.iban}
+                          {settings.bankDetails.iban}
                         </span>
                         <button
-                          onClick={() => handleCopy(BANK_DETAILS.iban, 'iban')}
+                          onClick={() => handleCopy(settings.bankDetails.iban, 'iban')}
                           className="p-1 hover:bg-slate-200 rounded"
                         >
                           {copiedField === 'iban' ? (
@@ -255,21 +251,21 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
                     </div>
 
                     <div className="flex justify-between pt-1 border-t border-slate-200">
-                      <span className="text-slate-500">Valor exato:</span>
+                      <span className="text-slate-500">{copy("overlay.payment-modal.019")}</span>
                       <span className="font-bold text-slate-900 font-mono">{plan.price}</span>
                     </div>
                   </div>
 
                   <a
                     href={`https://wa.me/${rawPhone}?text=${encodeURIComponent(
-                      `Olá! Fiz o pagamento de ${plan.price} para o plano ${plan.duration} da ${creator.shortName}. Segue o comprovativo para ativar o meu acesso.`
+                      copy("overlay.payment-modal.028", { price: plan.price, duration: plan.duration, name: creator.shortName })
                     )}`}
                     target="_blank"
                     rel="noopener noreferrer"
                     className="w-full py-3 bg-[#25D366] hover:bg-[#20ba59] text-white font-bold text-xs rounded-full transition-all flex items-center justify-center gap-2 shadow-md"
                   >
                     <Smartphone className="w-4 h-4" />
-                    <span>Enviar Comprovativo no WhatsApp</span>
+                    <span>{copy("overlay.payment-modal.020")}</span>
                   </a>
                 </div>
               )}
@@ -277,9 +273,7 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
               {/* Direct Link */}
               {paymentMethod === 'direct' && (
                 <div className="space-y-3 text-center">
-                  <p className="text-xs text-slate-500 text-left bg-slate-50 p-3 rounded-xl border border-slate-200">
-                    Podes também realizar o pagamento seguro diretamente na página parceira meuskambas.online.
-                  </p>
+                  <p className="text-xs text-slate-500 text-left bg-slate-50 p-3 rounded-xl border border-slate-200">{copy("overlay.payment-modal.021")}</p>
 
                   <a
                     href={plan.checkoutUrl}
@@ -287,7 +281,7 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
                     rel="noopener noreferrer"
                     className="w-full py-3 bg-[#00aff0] hover:bg-[#009ed9] text-white font-bold text-xs sm:text-sm rounded-full transition-all flex items-center justify-center gap-2 shadow-md shadow-[#00aff0]/25"
                   >
-                    <span>Ir para Checkout Oficial</span>
+                    <span>{copy("overlay.payment-modal.022")}</span>
                     <ExternalLink className="w-4 h-4" />
                   </a>
                 </div>
@@ -297,11 +291,11 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
               <div className="pt-2 border-t border-slate-100 flex items-center justify-between text-[11px] text-slate-400">
                 <div className="flex items-center gap-1">
                   <ShieldCheck className="w-3.5 h-3.5 text-emerald-500" />
-                  <span>SSL Seguro</span>
+                  <span>{copy("overlay.payment-modal.023")}</span>
                 </div>
                 <div className="flex items-center gap-1">
                   <Clock className="w-3.5 h-3.5 text-[#00aff0]" />
-                  <span>Ativação Instantânea</span>
+                  <span>{copy("overlay.payment-modal.024")}</span>
                 </div>
               </div>
             </>

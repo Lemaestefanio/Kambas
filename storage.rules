@@ -1,0 +1,28 @@
+rules_version = '2';
+service firebase.storage {
+  match /b/{bucket}/o {
+    function isAdmin() {
+      return request.auth != null
+        && request.auth.token.get('admin', false) == true
+        && request.auth.token.firebase.sign_in_provider != 'anonymous';
+    }
+
+    function validMedia() {
+      return request.resource.size > 0
+        && ((request.resource.contentType.matches('image/(jpeg|png|webp|gif|avif)')
+            && request.resource.size <= 20 * 1024 * 1024)
+          || (request.resource.contentType.matches('(video/(mp4|webm|quicktime)|audio/(mpeg|mp4|wav|x-wav|ogg|webm))')
+            && request.resource.size <= 100 * 1024 * 1024));
+    }
+
+    // Only public page media belongs here. This is not a paid-content vault.
+    match /public/{uploaderUid}/{filename} {
+      allow get: if true;
+      allow list: if false;
+      allow create, update: if isAdmin() && request.auth.uid == uploaderUid && validMedia();
+      allow delete: if isAdmin();
+    }
+
+    match /{path=**} { allow read, write: if false; }
+  }
+}

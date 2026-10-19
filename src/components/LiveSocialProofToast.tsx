@@ -1,3 +1,4 @@
+import { useSiteContent } from '../cms/SiteContent';
 import React, { useState, useEffect } from 'react';
 import { CheckCircle2, ShieldCheck, X } from 'lucide-react';
 
@@ -8,28 +9,32 @@ interface ProofNotification {
 }
 
 // 100% Anónimo: Sem apelidos de família e SEM qualquer localização!
-const NOTIFICATIONS: ProofNotification[] = [
-  { name: 'Edson', action: 'desbloqueou o plano VIP via Multicaixa', time: 'há 1 min' },
-  { name: 'Membro Anónimo', action: 'ativou acesso privado exclusivo', time: 'há 2 min' },
-  { name: 'Paulo', action: 'desbloqueou fotos e vídeos VIP', time: 'há 4 min' },
-  { name: 'Valter', action: 'assinou o plano de 30 dias', time: 'há 6 min' },
-  { name: 'Fã VIP', action: 'iniciou conversa no WhatsApp da criadora', time: 'há 8 min' },
-  { name: 'Edson', action: 'desbloqueou acesso total aos conteúdos', time: 'há 3 min' },
-];
+
 
 export const LiveSocialProofToast: React.FC = () => {
+  const { copy } = useSiteContent();
+  const NOTIFICATIONS: ProofNotification[] = [
+    { name: copy("overlay.live-social-proof-toast.009"), action: copy("overlay.live-social-proof-toast.010"), time: copy("overlay.live-social-proof-toast.002") },
+    { name: copy("overlay.live-social-proof-toast.011"), action: copy("overlay.live-social-proof-toast.012"), time: copy("overlay.live-social-proof-toast.003") },
+    { name: copy("overlay.live-social-proof-toast.013"), action: copy("overlay.live-social-proof-toast.014"), time: copy("overlay.live-social-proof-toast.004") },
+    { name: copy("overlay.live-social-proof-toast.015"), action: copy("overlay.live-social-proof-toast.016"), time: copy("overlay.live-social-proof-toast.005") },
+    { name: copy("overlay.live-social-proof-toast.017"), action: copy("overlay.live-social-proof-toast.018"), time: copy("overlay.live-social-proof-toast.006") },
+    { name: copy("overlay.live-social-proof-toast.019"), action: copy("overlay.live-social-proof-toast.020"), time: copy("overlay.live-social-proof-toast.007") },
+  ];
   const [current, setCurrent] = useState<ProofNotification | null>(null);
   const [visible, setVisible] = useState(false);
 
   useEffect(() => {
     let index = 0;
+    let interval: ReturnType<typeof setInterval> | undefined;
+    let hideTimer: ReturnType<typeof setTimeout> | undefined;
 
     const showNext = () => {
       setCurrent(NOTIFICATIONS[index % NOTIFICATIONS.length]);
       setVisible(true);
 
       // Hide after 3.8 seconds
-      setTimeout(() => {
+      hideTimer = setTimeout(() => {
         setVisible(false);
       }, 3800);
 
@@ -39,12 +44,15 @@ export const LiveSocialProofToast: React.FC = () => {
     // First popup after 8 seconds, then every 20 seconds
     const initialTimer = setTimeout(() => {
       showNext();
-      const interval = setInterval(showNext, 20000);
-      return () => clearInterval(interval);
+      interval = setInterval(showNext, 20000);
     }, 8000);
 
-    return () => clearTimeout(initialTimer);
-  }, []);
+    return () => {
+      clearTimeout(initialTimer);
+      if (interval) clearInterval(interval);
+      if (hideTimer) clearTimeout(hideTimer);
+    };
+  }, [copy]);
 
   if (!visible || !current) return null;
 
@@ -61,14 +69,14 @@ export const LiveSocialProofToast: React.FC = () => {
           </p>
           <div className="flex items-center gap-1.5 text-[9px] text-slate-400 mt-0.5">
             <ShieldCheck className="w-3 h-3 text-emerald-600" />
-            <span>Transação 100% Discreta & Anónima · {current.time}</span>
+            <span>{copy("overlay.live-social-proof-toast.008", { time: current.time })}</span>
           </div>
         </div>
 
         <button
           onClick={() => setVisible(false)}
           className="text-slate-400 hover:text-slate-600 p-1"
-          aria-label="Fechar"
+          aria-label={copy("overlay.live-social-proof-toast.001")}
         >
           <X className="w-3 h-3" />
         </button>

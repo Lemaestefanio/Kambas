@@ -33,51 +33,18 @@ import { Plan, Creator, AppUser } from './types';
 import { CREATORS } from './data/content';
 import {
   subscribeToCreators,
-  seedInitialCreatorsIfEmpty,
   onAuthChange,
   signOutUser,
 } from './firebase';
 import { User as FirebaseUser } from 'firebase/auth';
+import { useSiteContent } from './cms/SiteContent';
 
 export type PageMode = 'login-first' | 'direct-pay' | 'teaser-promo';
 export type ActiveView = 'feed' | 'messages' | 'comments' | 'checkout';
 
-const getInitialCreators = (): Creator[] => {
-  try {
-    const fullSaved = localStorage.getItem('luanda_prive_all_creators');
-    if (fullSaved) {
-      const parsed = JSON.parse(fullSaved);
-      if (Array.isArray(parsed) && parsed.length > 0) {
-        return parsed;
-      }
-    }
-
-    const customAvatarsSaved = localStorage.getItem('agency_custom_avatars');
-    const customAvatars = customAvatarsSaved ? JSON.parse(customAvatarsSaved) : {};
-
-    return CREATORS.map((c) => {
-      const ind = localStorage.getItem(`luanda_prive_creator_${c.id}`);
-      if (ind) {
-        try {
-          return JSON.parse(ind);
-        } catch {}
-      }
-      if (customAvatars[c.id]) {
-        return {
-          ...c,
-          avatar: customAvatars[c.id],
-          highlights: c.highlights.map((h, idx) =>
-            idx === 0 ? { ...h, coverImage: customAvatars[c.id] } : h
-          ),
-        };
-      }
-      return c;
-    });
-  } catch (e) {
-    console.error('Failed to load creators from cache:', e);
-  }
-  return CREATORS;
-};
+// Original content remains the visual fallback until the administrator publishes it.
+// Browser-only legacy edits are deliberately not treated as published data.
+const getInitialCreators = (): Creator[] => CREATORS;
 
 // URL-based routing to support separate dedicated links
 const parseUrlRoute = (): {
@@ -137,6 +104,7 @@ const parseUrlRoute = (): {
 
 export default function App() {
   const initialRoute = parseUrlRoute();
+  const { copy } = useSiteContent();
 
   const [creatorsList, setCreatorsList] = useState<Creator[]>(getInitialCreators);
   const [activeCreatorId, setActiveCreatorId] = useState<string>(CREATORS[0].id);
@@ -150,7 +118,7 @@ export default function App() {
   const [pageMode] = useState<PageMode>(initialRoute.mode);
   const [activeView, setActiveView] = useState<ActiveView>(initialRoute.view);
 
-  // Secret Admin Panel state (isolated, not visible to regular users)
+  // Administrative route (authorization is enforced by Firebase rules)
   const [isAdminOpen, setIsAdminOpen] = useState(initialRoute.isAdmin);
 
   // User Authentication state (restored from browser session for privacy)
@@ -202,42 +170,15 @@ export default function App() {
 
   // Real-time synchronization with Firebase Firestore
   useEffect(() => {
-    seedInitialCreatorsIfEmpty(CREATORS).catch((err) => {
-      console.warn('Firebase seeding notice:', err);
-    });
-
     const unsubscribe = subscribeToCreators(
       (firestoreCreators) => {
-        if (firestoreCreators && firestoreCreators.length > 0) {
-          const merged = CREATORS.map((def) => {
-            const remote = firestoreCreators.find((fc) => fc.id === def.id);
-            if (remote) {
-              return {
-                ...def,
-                ...remote,
-                highlights:
-                  remote.highlights !== undefined
-                    ? remote.highlights
-                    : def.highlights,
-                posts:
-                  remote.posts !== undefined
-                    ? remote.posts
-                    : def.posts,
-                galleryPhotos:
-                  remote.galleryPhotos !== undefined
-                    ? remote.galleryPhotos
-                    : def.galleryPhotos,
-              };
-            }
-            return def;
-          });
-
-          const extraModels = firestoreCreators.filter(
-            (fc) => !CREATORS.some((def) => def.id === fc.id)
-          );
-
-          setCreatorsList([...merged, ...extraModels]);
-        }
+        // A nonempty published collection is authoritative, including removals.
+        // Defaults are used only before initial publication, never merged back in.
+        const originalOrder = new Map(CREATORS.map((creator, index) => [creator.id, index]));
+        const ordered = [...firestoreCreators].sort((a, b) =>
+          (originalOrder.get(a.id) ?? CREATORS.length) - (originalOrder.get(b.id) ?? CREATORS.length)
+        );
+        setCreatorsList(ordered.length ? ordered : CREATORS);
       },
       (err) => {
         console.error('Firestore subscription error:', err);
@@ -278,51 +219,23 @@ export default function App() {
     }
   });
 
+  // Admin callbacks run only after Firestore confirms the corresponding write.
   const handleUpdateCreator = (updated: Creator) => {
-    setCreatorsList((prev) => {
-      const next = prev.map((c) => (c.id === updated.id ? updated : c));
-      try {
-        localStorage.setItem('luanda_prive_all_creators', JSON.stringify(next));
-        localStorage.setItem(`luanda_prive_creator_${updated.id}`, JSON.stringify(updated));
-      } catch (e) {
-        console.warn('LocalStorage save notice:', e);
-      }
-      return next;
-    });
+    setCreatorsList(prev => prev.map(c => c.id === updated.id ? updated : c));
   };
 
   const handleAddCreator = (newCreator: Creator) => {
-    setCreatorsList((prev) => {
-      const next = [...prev, newCreator];
-      try {
-        localStorage.setItem('luanda_prive_all_creators', JSON.stringify(next));
-      } catch (e) {
-        console.warn('LocalStorage save notice:', e);
-      }
-      return next;
-    });
-    saveCreatorToFirestore(newCreator);
+    setCreatorsList(prev => prev.some(c => c.id === newCreator.id)
+      ? prev.map(c => c.id === newCreator.id ? newCreator : c)
+      : [...prev, newCreator]);
     setActiveCreatorId(newCreator.id);
   };
 
   const handleDeleteCreator = (creatorId: string) => {
-    setCreatorsList((prev) => {
-      const next = prev.filter((c) => c.id !== creatorId);
-      try {
-        localStorage.setItem('luanda_prive_all_creators', JSON.stringify(next));
-        localStorage.removeItem(`luanda_prive_creator_${creatorId}`);
-      } catch (e) {
-        console.warn('LocalStorage remove notice:', e);
-      }
-      return next;
-    });
-    setActiveCreatorId((prev) => {
-      if (prev === creatorId) {
-        const remaining = creatorsList.filter((c) => c.id !== creatorId);
-        return remaining.length > 0 ? remaining[0].id : prev;
-      }
-      return prev;
-    });
+    setCreatorsList(prev => prev.filter(c => c.id !== creatorId));
+    if (activeCreatorId === creatorId) {
+      setActiveCreatorId(creatorsList.find(c => c.id !== creatorId)?.id ?? CREATORS[0].id);
+    }
   };
 
   /**
@@ -394,7 +307,7 @@ export default function App() {
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
-  if (isSafeBridgeActive) {
+  if (isSafeBridgeActive && !isAdminOpen) {
     return (
       <SafeBridgePage
         onEnterPlatform={() => {
@@ -408,7 +321,7 @@ export default function App() {
   return (
     <div className="min-h-screen bg-[#f0f2f5] max-w-[600px] mx-auto pb-44 shadow-xl sm:border-x sm:border-slate-200 text-[#1c1e21] relative antialiased">
       {/* 18+ Age Verification Modal */}
-      <AgeVerificationModal onVerified={() => setAgeVerified(true)} />
+      {!isAdminOpen && <AgeVerificationModal onVerified={() => setAgeVerified(true)} />}
 
       {/* Página 3: Promo Banner de Alta Conversão com Contagem Decrescente (Só aparece em /promo-3) */}
       {pageMode === 'teaser-promo' && (
@@ -420,10 +333,10 @@ export default function App() {
             </span>
             <div>
               <p className="text-xs font-black text-white">
-                Luanda Privé · <span className="text-rose-400">50% DE DESCONTO VIP</span>
+                {copy('site.promoBrand')}<span className="text-rose-400">{copy('site.promoOffer')}</span>
               </p>
               <p className="text-[10px] text-slate-300">
-                Oferta de boas-vindas expira em:{' '}
+                {copy('site.promoExpiry')}{' '}
                 <span className="font-mono font-bold text-rose-300 bg-black/40 px-1.5 py-0.5 rounded ml-1">
                   {formatPromoTime(promoTimeLeft)}
                 </span>
@@ -435,7 +348,7 @@ export default function App() {
             onClick={handleOpenPlans}
             className="px-3 py-1.5 rounded-full bg-gradient-to-r from-rose-600 to-rose-500 hover:from-rose-500 hover:to-rose-400 text-white font-extrabold text-xs shadow-md active:scale-95 flex items-center gap-1 cursor-pointer shrink-0"
           >
-            <span>Aproveitar</span>
+            <span>{copy('site.promoButton')}</span>
             <ArrowRight className="w-3.5 h-3.5" />
           </button>
         </div>
@@ -581,11 +494,11 @@ export default function App() {
 
           {/* Rodapé Limpo e 100% Profissional (sem botões de admin visíveis para visitantes) */}
           <footer className="py-8 px-4 text-center border-t border-slate-200 mt-6 text-xs text-slate-400 space-y-1.5">
-            <p className="font-semibold text-slate-600">Luanda Privé · Luanda, Angola</p>
+            <p className="font-semibold text-slate-600">{copy('site.footerBrand')}</p>
             <p className="text-[11px] text-slate-400">
-              Acesso exclusivo para maiores de 18 anos. Pagamentos discretos e seguros via Multicaixa Express.
+              {copy('site.footerNotice')}
             </p>
-            <p className="text-[10px] text-slate-300 pt-2">© 2026 Luanda Privé · Todos os direitos reservados</p>
+            <p className="text-[10px] text-slate-300 pt-2">{copy('site.footerCopyright')}</p>
           </footer>
 
           {/* Barra Inferior Fixa para Desktops/Tablets */}
@@ -681,7 +594,7 @@ export default function App() {
         creatorName={currentCreator.shortName}
       />
 
-      {/* PAINEL ADMINISTRATIVO SECRETO (Isolado e protegido por PIN) */}
+      {/* PAINEL ADMINISTRATIVO (Firebase Auth e autorização no servidor) */}
       <AdminPanelModal
         isOpen={isAdminOpen}
         onClose={() => setIsAdminOpen(false)}

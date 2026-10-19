@@ -44,6 +44,7 @@ export interface MediaPhoto {
 }
 
 export interface VoiceNote {
+  url?: string;
   id: string;
   title: string;
   duration: string;

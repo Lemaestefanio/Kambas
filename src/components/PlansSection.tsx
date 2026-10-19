@@ -1,3 +1,4 @@
+import { useSiteContent } from '../cms/SiteContent';
 import React from 'react';
 import { Lock, Sparkles, Check, ChevronRight, ShieldCheck, MessageCircle, Star } from 'lucide-react';
 import { Creator } from '../types';
@@ -8,6 +9,7 @@ interface PlansSectionProps {
 }
 
 export const PlansSection: React.FC<PlansSectionProps> = ({ creator, onOpenPlansModal }) => {
+  const { copy } = useSiteContent();
   return (
     <div
       id="plans-section"
@@ -17,10 +19,10 @@ export const PlansSection: React.FC<PlansSectionProps> = ({ creator, onOpenPlans
       <div className="px-5 pt-4 pb-2 border-b border-slate-100 flex items-center justify-between">
         <h2 className="text-xs font-bold text-slate-500 uppercase tracking-widest flex items-center gap-1.5">
           <Star className="w-3.5 h-3.5 text-[#00aff0] fill-[#00aff0]" />
-          <span>Assinatura VIP · {creator.shortName}</span>
+          <span>{copy('home.plans.title', { name: creator.shortName })}</span>
         </h2>
         <span className="text-[10px] font-bold text-emerald-600 bg-emerald-50 px-2.5 py-1 rounded-full border border-emerald-200">
-          Acesso Imediato
+          {copy('home.plans.immediate')}
         </span>
       </div>
 
@@ -49,32 +51,32 @@ export const PlansSection: React.FC<PlansSectionProps> = ({ creator, onOpenPlans
                 </span>
               </div>
               <p className="text-xs text-slate-300 font-medium truncate">
-                {creator.handle} · Luanda, Angola 🇦🇴
+                {copy('home.plans.location', { handle: creator.handle })}
               </p>
             </div>
           </div>
 
           <p className="text-xs text-slate-300 leading-relaxed mb-4">
-            Subscreva agora para desbloquear todas as fotos, vídeos íntimos, áudios e conversar diretamente comigo no meu WhatsApp privado.
+            {copy('home.plans.description')}
           </p>
 
           {/* Value Perks */}
           <div className="space-y-2 mb-4 bg-white/5 rounded-lg p-3 border border-white/10 text-xs">
             <div className="flex items-center gap-2 text-slate-200">
               <Check className="w-4 h-4 text-[#00aff0] shrink-0" />
-              <span>Desbloqueio de todas as fotos e vídeos (+120 mídias)</span>
+              <span>{copy('home.plans.mediaBenefit')}</span>
             </div>
             <div className="flex items-center gap-2 text-slate-200">
               <Check className="w-4 h-4 text-[#00aff0] shrink-0" />
-              <span>WhatsApp particular com áudios e chamadas</span>
+              <span>{copy('home.plans.whatsappBenefit')}</span>
             </div>
             <div className="flex items-center gap-2 text-slate-200">
               <Check className="w-4 h-4 text-[#00aff0] shrink-0" />
-              <span>Canal VIP secreto no Telegram</span>
+              <span>{copy('home.plans.telegramBenefit')}</span>
             </div>
             <div className="flex items-center gap-2 text-slate-200">
               <Check className="w-4 h-4 text-[#00aff0] shrink-0" />
-              <span>Pagamento discreto e anônimo no Multicaixa Express</span>
+              <span>{copy('home.plans.paymentBenefit')}</span>
             </div>
           </div>
 
@@ -84,7 +86,7 @@ export const PlansSection: React.FC<PlansSectionProps> = ({ creator, onOpenPlans
             className="w-full py-3.5 rounded-full bg-gradient-to-r from-[#00aff0] to-[#0088cc] hover:from-[#009fd9] hover:to-[#007ab8] text-white font-bold text-sm tracking-wide transition-all shadow-lg shadow-[#00aff0]/30 active:scale-[0.98] flex items-center justify-center gap-2 cursor-pointer"
           >
             <Lock className="w-4 h-4" />
-            <span>VER PLANOS DE ACESSO VIP</span>
+            <span>{copy('home.plans.viewPlans')}</span>
             <ChevronRight className="w-4 h-4" />
           </button>
         </div>
@@ -99,14 +101,14 @@ export const PlansSection: React.FC<PlansSectionProps> = ({ creator, onOpenPlans
           </div>
 
           <div className="flex-1 min-w-0">
-            <p className="text-[11px] font-bold text-[#15803d]">Benefício Especial VIP</p>
+            <p className="text-[11px] font-bold text-[#15803d]">{copy('home.plans.specialBenefit')}</p>
             <p className="text-xs font-semibold text-slate-800 truncate">
-              WhatsApp pessoal da {creator.shortName} incluso no acesso
+              {copy('home.plans.whatsappPersonal', { name: creator.shortName })}
             </p>
           </div>
 
           <span className="text-[11px] font-bold text-[#15803d] flex items-center gap-0.5">
-            <span>Ver</span>
+            <span>{copy('home.plans.view')}</span>
             <ChevronRight className="w-3.5 h-3.5" />
           </span>
         </div>
@@ -115,11 +117,11 @@ export const PlansSection: React.FC<PlansSectionProps> = ({ creator, onOpenPlans
         <div className="flex items-center justify-between text-[11px] text-slate-500 pt-1">
           <div className="flex items-center gap-1.5">
             <ShieldCheck className="w-4 h-4 text-[#00aff0]" />
-            <span>Multicaixa Express Seguro</span>
+            <span>{copy('home.plans.securePayment')}</span>
           </div>
           <div className="flex items-center gap-1.5">
             <Sparkles className="w-4 h-4 text-[#00aff0]" />
-            <span>Ativação Instantânea</span>
+            <span>{copy('home.plans.activation')}</span>
           </div>
         </div>
       </div>

@@ -1,3 +1,4 @@
+import { useSiteContent } from '../cms/SiteContent';
 import React, { useState } from 'react';
 import { X, Send, Heart, CheckCircle2 } from 'lucide-react';
 import { Creator } from '../types';
@@ -27,16 +28,16 @@ export const PostCommentsModal: React.FC<PostCommentsModalProps> = ({
   creator,
   postCaption,
 }) => {
-  if (!isOpen) return null;
+  const { copy } = useSiteContent();
 
-  const [comments, setComments] = useState<Comment[]>([
+  const initialComments: Comment[] = [
     {
       id: 'c1',
-      author: 'Membro VIP Luanda',
-      handle: '@membro_vip',
+      author: copy("overlay.post-comments-modal.007"),
+      handle: copy("overlay.post-comments-modal.008"),
       isVip: true,
-      text: `Olha ${creator.shortName} acabei de pagar o VIP agora pelo Express! Quero marcar uma chamada de vídeo contigo hoje 🔥🇦🇴`,
-      time: 'há 6 min',
+      text: copy("overlay.post-comments-modal.024", { name: creator.shortName }),
+      time: copy("overlay.post-comments-modal.009"),
       likes: 18,
     },
     {
@@ -45,18 +46,18 @@ export const PostCommentsModal: React.FC<PostCommentsModalProps> = ({
       handle: creator.handle,
       isCreator: true,
       isVip: true,
-      text: 'Acabei de confirmar aqui amor! Já te mandei mensagem no WhatsApp, atende lá que já estou online na chamada 💋',
-      time: 'há 4 min',
+      text: copy("overlay.post-comments-modal.010"),
+      time: copy("overlay.post-comments-modal.011"),
       likes: 38,
       isLiked: true,
     },
     {
       id: 'c3',
-      author: 'Fã Secreto Maianga',
-      handle: '@fa_maianga',
+      author: copy("overlay.post-comments-modal.012"),
+      handle: copy("overlay.post-comments-modal.013"),
       isVip: true,
-      text: `Deixei uma mensagem no privado ${creator.shortName}, confirma lá o comprovativo do plano de 3 meses pfvr`,
-      time: 'há 18 min',
+      text: copy("overlay.post-comments-modal.025", { name: creator.shortName }),
+      time: copy("overlay.post-comments-modal.014"),
       likes: 14,
     },
     {
@@ -65,21 +66,26 @@ export const PostCommentsModal: React.FC<PostCommentsModalProps> = ({
       handle: creator.handle,
       isCreator: true,
       isVip: true,
-      text: 'Confirmadíssimo gato! Acesso liberado no Telegram e no feed sem censura 😈🔥',
-      time: 'há 15 min',
+      text: copy("overlay.post-comments-modal.015"),
+      time: copy("overlay.post-comments-modal.016"),
       likes: 29,
       isLiked: true,
     },
     {
       id: 'c5',
-      author: 'Kota VIP Talatona',
-      handle: '@talatona_vip',
+      author: copy("overlay.post-comments-modal.017"),
+      handle: copy("overlay.post-comments-modal.018"),
       isVip: true,
-      text: 'Mano o VIP vale bué a pena, a chamada de ontem à noite foi surreal... 🔥🤤',
-      time: 'há 35 min',
+      text: copy("overlay.post-comments-modal.019"),
+      time: copy("overlay.post-comments-modal.020"),
       likes: 22,
     },
-  ]);
+  ];
+  const [comments, setComments] = useState<Comment[]>(initialComments);
+  const displayedComments = comments.map((entry) => {
+    const original = initialComments.find((item) => item.id === entry.id);
+    return original ? { ...entry, ...original, likes: entry.likes, isLiked: entry.isLiked } : entry;
+  });
 
   const [newComment, setNewComment] = useState('');
 
@@ -89,11 +95,11 @@ export const PostCommentsModal: React.FC<PostCommentsModalProps> = ({
 
     const added: Comment = {
       id: `c-${Date.now()}`,
-      author: 'Você (Anónimo)',
-      handle: '@assinante_anonimo',
+      author: copy("overlay.post-comments-modal.021"),
+      handle: copy("overlay.post-comments-modal.022"),
       isVip: true,
       text: newComment.trim(),
-      time: 'agora mesmo',
+      time: copy("overlay.post-comments-modal.023"),
       likes: 1,
       isLiked: true,
     };
@@ -118,6 +124,8 @@ export const PostCommentsModal: React.FC<PostCommentsModalProps> = ({
     );
   };
 
+  if (!isOpen) return null;
+
   return (
     <div className="fixed inset-0 z-[10005] bg-black/80 backdrop-blur-sm flex items-end sm:items-center justify-center p-0 sm:p-4 animate-fade-in">
       <div
@@ -127,7 +135,7 @@ export const PostCommentsModal: React.FC<PostCommentsModalProps> = ({
         {/* Header */}
         <div className="p-4 border-b border-slate-100 flex items-center justify-between bg-slate-50">
           <div>
-            <h3 className="text-sm font-bold text-slate-900">Comentários da Publicação</h3>
+            <h3 className="text-sm font-bold text-slate-900">{copy("overlay.post-comments-modal.001")}</h3>
             <p className="text-[11px] text-slate-500 truncate max-w-[280px]">
               {postCaption}
             </p>
@@ -143,12 +151,12 @@ export const PostCommentsModal: React.FC<PostCommentsModalProps> = ({
         {/* Discreet Notice */}
         <div className="px-4 py-2 bg-slate-100/70 border-b border-slate-200/50 text-[11px] text-slate-500 flex items-center gap-1.5">
           <span className="w-2 h-2 rounded-full bg-emerald-500 shrink-0"></span>
-          <span>100% Confidencial: a tua foto de perfil nunca é exibida nos comentários.</span>
+          <span>{copy("overlay.post-comments-modal.002")}</span>
         </div>
 
         {/* Comments List */}
         <div className="flex-1 overflow-y-auto p-4 space-y-4">
-          {comments.map((comment) => (
+          {displayedComments.map((comment) => (
             <div key={comment.id} className="flex items-start gap-3 text-left">
               {/* Creator has verified photo, fans are anonymous without photo */}
               {comment.isCreator ? (
@@ -160,10 +168,8 @@ export const PostCommentsModal: React.FC<PostCommentsModalProps> = ({
               ) : (
                 <div
                   className="w-8 h-8 rounded-full bg-slate-800 text-slate-200 flex items-center justify-center text-[10px] font-bold shrink-0 border border-slate-700 shadow-2xs"
-                  title="Confidencial · Sem foto"
-                >
-                  VIP
-                </div>
+                  title={copy("overlay.post-comments-modal.005")}
+                >{copy("overlay.post-comments-modal.003")}</div>
               )}
               <div className="flex-1 min-w-0">
                 <div className="flex items-center justify-between">
@@ -175,9 +181,7 @@ export const PostCommentsModal: React.FC<PostCommentsModalProps> = ({
                       <CheckCircle2 className="w-3.5 h-3.5 text-white fill-[#00aff0] shrink-0" />
                     )}
                     {comment.isVip && !comment.isCreator && (
-                      <span className="px-1.5 py-0.2 rounded bg-amber-100 text-amber-800 text-[9px] font-bold">
-                        VIP
-                      </span>
+                      <span className="px-1.5 py-0.2 rounded bg-amber-100 text-amber-800 text-[9px] font-bold">{copy("overlay.post-comments-modal.004")}</span>
                     )}
                     <span className="text-[10px] text-slate-400">· {comment.time}</span>
                   </div>
@@ -205,7 +209,7 @@ export const PostCommentsModal: React.FC<PostCommentsModalProps> = ({
         <form onSubmit={handleAddComment} className="p-3 border-t border-slate-100 bg-white flex items-center gap-2">
           <input
             type="text"
-            placeholder="Escreve um comentário..."
+            placeholder={copy("overlay.post-comments-modal.006")}
             value={newComment}
             onChange={(e) => setNewComment(e.target.value)}
             className="flex-1 px-3 py-2 bg-slate-100 border border-slate-200 rounded-full text-xs text-slate-900 placeholder-slate-400 focus:outline-none focus:border-[#00aff0]"

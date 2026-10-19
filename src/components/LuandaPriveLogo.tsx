@@ -1,3 +1,4 @@
+import { useSiteContent } from '../cms/SiteContent';
 import React from 'react';
 
 interface LuandaPriveLogoProps {
@@ -13,6 +14,7 @@ export const LuandaPriveLogo: React.FC<LuandaPriveLogoProps> = ({
   size = 'md',
   theme = 'dark',
 }) => {
+  const { copy } = useSiteContent();
   // Height configurations
   const heights = {
     sm: 'h-6',
@@ -88,16 +90,16 @@ export const LuandaPriveLogo: React.FC<LuandaPriveLogoProps> = ({
       {/* Official Wordmark: Luanda Privé */}
       <div className="flex items-baseline gap-1.5 leading-none">
         <span className={`font-bold tracking-tight ${textColor} ${textSizes[size]}`}>
-          Luanda
+          {copy('home.brand.name')}
         </span>
         <span className={`font-bold tracking-tight ${priveColor} ${textSizes[size]}`}>
-          Privé
+          {copy('home.brand.suffix')}
         </span>
 
         {/* Subtle VIP tag */}
         {variant === 'full' && (
           <span className="ml-1 text-[8px] sm:text-[9px] font-sans font-black uppercase tracking-wider text-amber-400 bg-amber-400/15 border border-amber-400/30 px-1.5 py-0.2 rounded">
-            VIP
+            {copy('home.brand.badge')}
           </span>
         )}
       </div>

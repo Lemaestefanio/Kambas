@@ -1,3 +1,4 @@
+import { useSiteContent } from '../cms/SiteContent';
 import React, { useState, useEffect } from 'react';
 import { ShieldCheck } from 'lucide-react';
 
@@ -6,6 +7,7 @@ interface AgeVerificationModalProps {
 }
 
 export const AgeVerificationModal: React.FC<AgeVerificationModalProps> = ({ onVerified }) => {
+  const { copy } = useSiteContent();
   const [isOpen, setIsOpen] = useState(false);
 
   useEffect(() => {
@@ -36,32 +38,22 @@ export const AgeVerificationModal: React.FC<AgeVerificationModalProps> = ({ onVe
           <ShieldCheck className="h-8 w-8 text-[#00aff0]" />
         </div>
 
-        <h2 className="text-xl font-bold text-slate-900 mb-2">
-          Verificação de Idade
-        </h2>
+        <h2 className="text-xl font-bold text-slate-900 mb-2">{copy("overlay.age-verification-modal.001")}</h2>
 
-        <p className="text-sm text-slate-600 mb-1">
-          Este site contém conteúdo restrito para maiores de 18 anos.
-        </p>
+        <p className="text-sm text-slate-600 mb-1">{copy("overlay.age-verification-modal.002")}</p>
 
-        <p className="text-xs text-slate-400 mb-6">
-          Ao continuar, você confirma que tem 18 anos ou mais.
-        </p>
+        <p className="text-xs text-slate-400 mb-6">{copy("overlay.age-verification-modal.003")}</p>
 
         <div className="space-y-3">
           <button
             onClick={handleConfirm}
             className="w-full py-3.5 rounded-full bg-[#00aff0] hover:bg-[#009ed9] text-white font-bold text-sm tracking-wide transition-colors shadow-lg shadow-[#00aff0]/25 active:scale-[0.98]"
-          >
-            Sim, sou maior de idade (+18)
-          </button>
+          >{copy("overlay.age-verification-modal.004")}</button>
 
           <button
             onClick={handleExit}
             className="w-full py-3 rounded-full border border-slate-200 text-slate-500 hover:bg-slate-50 font-medium text-xs transition-colors"
-          >
-            Sair
-          </button>
+          >{copy("overlay.age-verification-modal.005")}</button>
         </div>
       </div>
     </div>

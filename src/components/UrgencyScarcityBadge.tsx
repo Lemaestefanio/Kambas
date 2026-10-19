@@ -1,3 +1,4 @@
+import { useSiteContent } from '../cms/SiteContent';
 import React, { useState, useEffect } from 'react';
 import { Flame, Clock, Eye, ShieldCheck, Zap } from 'lucide-react';
 
@@ -10,6 +11,7 @@ export const UrgencyScarcityBadge: React.FC<UrgencyScarcityBadgeProps> = ({
   creatorShortName,
   onUnlockClick,
 }) => {
+  const { copy } = useSiteContent();
   const [viewers, setViewers] = useState(7);
   const [secondsLeft, setSecondsLeft] = useState(864); // ~14 min countdown
 
@@ -38,19 +40,19 @@ export const UrgencyScarcityBadge: React.FC<UrgencyScarcityBadgeProps> = ({
       <div className="flex items-center justify-between text-xs">
         <div className="flex items-center gap-1.5 text-amber-700 font-bold">
           <Flame className="w-4 h-4 text-[#f97316] fill-[#f97316] animate-pulse" />
-          <span>Alta Procura em Luanda</span>
+          <span>{copy('home.urgency.title')}</span>
         </div>
 
         <div className="flex items-center gap-1 text-[11px] text-slate-600 font-medium">
           <Eye className="w-3.5 h-3.5 text-slate-400" />
-          <span><strong className="text-slate-900 font-mono">{viewers} pessoas</strong> a ver agora</span>
+          <span><strong className="text-slate-900 font-mono">{copy('home.urgency.viewers', { count: viewers })}</strong>{copy('home.urgency.viewing')}</span>
         </div>
       </div>
 
       <div className="flex items-center justify-between text-[11px] text-slate-700 pt-1.5 border-t border-amber-500/15">
         <div className="flex items-center gap-1 text-rose-600 font-semibold">
           <Zap className="w-3.5 h-3.5 fill-rose-500 text-rose-500" />
-          <span>Apenas 2 vagas de chamada de vídeo hoje</span>
+          <span>{copy('home.urgency.availability')}</span>
         </div>
 
         <div className="flex items-center gap-1 font-mono text-slate-800 bg-white px-2 py-0.5 rounded-md border border-slate-200">

@@ -1,3 +1,4 @@
+import { useSiteContent } from '../cms/SiteContent';
 import React, { useState } from 'react';
 import { X, Check, Lock, Sparkles, ShieldCheck, ChevronRight, Zap } from 'lucide-react';
 import { Plan, Creator } from '../types';
@@ -15,11 +16,11 @@ export const PlansModal: React.FC<PlansModalProps> = ({
   onClose,
   onSelectPlan,
 }) => {
-  if (!isOpen) return null;
+  const { copy } = useSiteContent();
 
   // Default to 30 days plan or first plan
   const defaultPlan = creator.plans.find((p) => p.id === '30-days') || creator.plans[0];
-  const [selectedPlanId, setSelectedPlanId] = useState<string>(defaultPlan.id);
+  const [selectedPlanId, setSelectedPlanId] = useState<string>(defaultPlan?.id || '');
 
   const activePlan = creator.plans.find((p) => p.id === selectedPlanId) || defaultPlan;
 
@@ -30,6 +31,8 @@ export const PlansModal: React.FC<PlansModalProps> = ({
       'https://pay.meuskambas.online/checkout/sandra-gomes-chat-privado-30-dias';
     window.location.href = targetUrl;
   };
+
+  if (!isOpen || !activePlan) return null;
 
   return (
     <div className="fixed inset-0 z-[9999] flex items-end sm:items-center justify-center bg-black/80 backdrop-blur-sm animate-fade-in p-0 sm:p-4">
@@ -61,16 +64,14 @@ export const PlansModal: React.FC<PlansModalProps> = ({
                   ✓
                 </span>
               </div>
-              <p className="text-[11px] font-semibold text-slate-500">
-                Planos de Acesso VIP Exclusivo
-              </p>
+              <p className="text-[11px] font-semibold text-slate-500">{copy("overlay.plans-modal.001")}</p>
             </div>
           </div>
 
           <button
             onClick={onClose}
             className="p-1.5 text-slate-400 hover:text-slate-700 rounded-full hover:bg-slate-200 transition-colors"
-            aria-label="Fechar"
+            aria-label={copy("overlay.plans-modal.011")}
           >
             <X className="w-5 h-5" />
           </button>
@@ -82,34 +83,32 @@ export const PlansModal: React.FC<PlansModalProps> = ({
           <div className="bg-[#00aff0]/5 rounded-xl p-3.5 border border-[#00aff0]/20 space-y-2">
             <div className="flex items-center gap-2 text-xs font-bold text-[#00aff0]">
               <Sparkles className="w-4 h-4 text-[#00aff0]" />
-              <span>O que está incluso na sua assinatura VIP:</span>
+              <span>{copy("overlay.plans-modal.002")}</span>
             </div>
 
             <ul className="space-y-1.5 text-[11px] text-slate-700 font-medium">
               <li className="flex items-center gap-2">
                 <Check className="w-3.5 h-3.5 text-[#00aff0] shrink-0" />
-                <span>Acesso ilimitado a todas as postagens, fotos íntimas e vídeos 4K</span>
+                <span>{copy("overlay.plans-modal.003")}</span>
               </li>
               <li className="flex items-center gap-2">
                 <Check className="w-3.5 h-3.5 text-[#00aff0] shrink-0" />
-                <span>WhatsApp pessoal da {creator.shortName} para mensagens e áudios</span>
+                <span>{copy("overlay.plans-modal.013", { name: creator.shortName })}</span>
               </li>
               <li className="flex items-center gap-2">
                 <Check className="w-3.5 h-3.5 text-[#00aff0] shrink-0" />
-                <span>Canal VIP privado com atualizações diárias exclusivas</span>
+                <span>{copy("overlay.plans-modal.004")}</span>
               </li>
               <li className="flex items-center gap-2">
                 <Check className="w-3.5 h-3.5 text-[#00aff0] shrink-0" />
-                <span>Sigilo bancário total garantido no extrato Multicaixa</span>
+                <span>{copy("overlay.plans-modal.005")}</span>
               </li>
             </ul>
           </div>
 
           {/* Section title */}
           <div>
-            <p className="text-xs font-bold text-slate-700 uppercase tracking-wider mb-2.5">
-              Escolha seu período de acesso:
-            </p>
+            <p className="text-xs font-bold text-slate-700 uppercase tracking-wider mb-2.5">{copy("overlay.plans-modal.006")}</p>
 
             {/* Plan Cards */}
             <div className="space-y-2.5">
@@ -150,7 +149,7 @@ export const PlansModal: React.FC<PlansModalProps> = ({
                             )}
                           </div>
                           <p className="text-[11px] text-slate-500">
-                            {plan.periodLabel || 'Acesso VIP completo'}
+                            {plan.periodLabel || copy("overlay.plans-modal.014")}
                           </p>
                         </div>
                       </div>
@@ -162,9 +161,7 @@ export const PlansModal: React.FC<PlansModalProps> = ({
                           </span>
                           <span className="text-sm">🇦🇴</span>
                         </div>
-                        <span className="text-[10px] text-slate-400 font-medium">
-                          Multicaixa Express
-                        </span>
+                        <span className="text-[10px] text-slate-400 font-medium">{copy("overlay.plans-modal.007")}</span>
                       </div>
                     </div>
                   </div>
@@ -177,8 +174,7 @@ export const PlansModal: React.FC<PlansModalProps> = ({
           <div className="flex items-center gap-2 bg-slate-50 rounded-xl px-3.5 py-2.5 border border-slate-200 text-slate-600">
             <ShieldCheck className="w-4 h-4 text-[#00aff0] shrink-0" />
             <p className="text-[11px] leading-tight">
-              <strong>Cobrança anônima:</strong> No extrato bancário aparece apenas como serviço de tecnologia neutro.
-            </p>
+              <strong>{copy("overlay.plans-modal.008")}</strong>{copy("overlay.plans-modal.009")}</p>
           </div>
         </div>
 
@@ -192,14 +188,12 @@ export const PlansModal: React.FC<PlansModalProps> = ({
             <span>
               {creator.customPaymentButtonText
                 ? `${creator.customPaymentButtonText} (${activePlan.price})`
-                : `Confirmar e Pagar ${activePlan.duration} (${activePlan.price})`}
+                : copy("overlay.plans-modal.012", { duration: activePlan.duration, price: activePlan.price })}
             </span>
             <ChevronRight className="w-4 h-4" />
           </button>
 
-          <p className="text-center text-[10px] text-slate-400">
-            Acesso liberado instantaneamente após confirmação no Multicaixa
-          </p>
+          <p className="text-center text-[10px] text-slate-400">{copy("overlay.plans-modal.010")}</p>
         </div>
       </div>
     </div>

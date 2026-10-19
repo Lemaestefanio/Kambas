@@ -1,3 +1,4 @@
+import { useSiteContent } from '../cms/SiteContent';
 import React from 'react';
 import { CheckCircle2, ArrowRight, MapPin, Sparkles } from 'lucide-react';
 import { Creator } from '../types';
@@ -15,6 +16,7 @@ export const OtherCreatorsGrid: React.FC<OtherCreatorsGridProps> = ({
   onSelectCreator,
   onOpenDirectory,
 }) => {
+  const { copy } = useSiteContent();
   const [showAll, setShowAll] = React.useState(false);
   const otherCreators = creators.filter((c) => c.id !== currentCreatorId);
   const displayedCreators = showAll ? otherCreators : otherCreators.slice(0, 4);
@@ -27,11 +29,11 @@ export const OtherCreatorsGrid: React.FC<OtherCreatorsGridProps> = ({
           <div className="flex items-center gap-1.5">
             <Sparkles className="w-4 h-4 text-[#00aff0]" />
             <h3 className="text-xs sm:text-sm font-bold text-slate-900">
-              Mais Modelos da Agência em Luanda
+              {copy('home.others.title')}
             </h3>
           </div>
           <p className="text-[11px] text-slate-500 mt-0.5">
-            {creators.length} criadoras oficiais verificadas com conteúdos diários
+            {copy('home.others.count', { count: creators.length })}
           </p>
         </div>
 
@@ -39,7 +41,7 @@ export const OtherCreatorsGrid: React.FC<OtherCreatorsGridProps> = ({
           onClick={onOpenDirectory}
           className="text-xs font-bold text-[#00aff0] hover:underline shrink-0"
         >
-          Ver Diretório
+          {copy('home.others.directory')}
         </button>
       </div>
 
@@ -59,7 +61,7 @@ export const OtherCreatorsGrid: React.FC<OtherCreatorsGridProps> = ({
                 className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
               />
               <span className="absolute bottom-1 right-1 text-[9px] bg-black/70 text-white px-1.5 py-0.5 rounded-full font-mono">
-                {c.stats.photos} fotos
+                {copy('home.others.photos', { count: c.stats.photos })}
               </span>
             </div>
 
@@ -88,7 +90,7 @@ export const OtherCreatorsGrid: React.FC<OtherCreatorsGridProps> = ({
               </div>
 
               <button className="w-full py-1.5 px-2 bg-white hover:bg-[#00aff0] text-slate-800 hover:text-white border border-slate-200 hover:border-[#00aff0] rounded-lg text-[11px] font-bold transition-colors flex items-center justify-center gap-1 shadow-2xs">
-                <span>Aceder Perfil</span>
+                <span>{copy('home.others.viewProfile')}</span>
                 <ArrowRight className="w-3 h-3" />
               </button>
             </div>
@@ -101,7 +103,7 @@ export const OtherCreatorsGrid: React.FC<OtherCreatorsGridProps> = ({
           onClick={() => setShowAll(!showAll)}
           className="w-full mt-3 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold rounded-xl transition-colors flex items-center justify-center gap-1.5"
         >
-          <span>{showAll ? 'Mostrar Menos' : `Ver Mais Modelos da Agência (${otherCreators.length - 4})`}</span>
+          <span>{showAll ? copy('home.others.less') : copy('home.others.more', { count: otherCreators.length - 4 })}</span>
         </button>
       )}
     </section>

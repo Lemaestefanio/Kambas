@@ -1,3 +1,4 @@
+import { useSiteContent } from '../cms/SiteContent';
 import React, { useState, useEffect } from 'react';
 import { X, ChevronLeft, ChevronRight, Lock, Heart, Send } from 'lucide-react';
 import { StoryHighlight, Creator } from '../types';
@@ -17,7 +18,7 @@ export const StoryViewerModal: React.FC<StoryViewerModalProps> = ({
   onClose,
   onUnlockClick,
 }) => {
-  if (!isOpen) return null;
+  const { copy } = useSiteContent();
 
   const [currentIndex, setCurrentIndex] = useState(initialStoryIndex);
   const [progress, setProgress] = useState(0);
@@ -26,6 +27,7 @@ export const StoryViewerModal: React.FC<StoryViewerModalProps> = ({
   const currentStory: StoryHighlight = creator.highlights[currentIndex] || creator.highlights[0];
 
   useEffect(() => {
+    if (!isOpen) return;
     setProgress(0);
     const interval = setInterval(() => {
       setProgress((p) => {
@@ -44,7 +46,7 @@ export const StoryViewerModal: React.FC<StoryViewerModalProps> = ({
     }, 100);
 
     return () => clearInterval(interval);
-  }, [currentIndex, creator.highlights.length, onClose]);
+  }, [currentIndex, creator.highlights.length, onClose, isOpen]);
 
   const handlePrev = (e: React.MouseEvent) => {
     e.stopPropagation();
@@ -68,6 +70,8 @@ export const StoryViewerModal: React.FC<StoryViewerModalProps> = ({
     setReactionSent(emoji);
     setTimeout(() => setReactionSent(null), 2000);
   };
+
+  if (!isOpen || !currentStory) return null;
 
   return (
     <div className="fixed inset-0 z-[10001] bg-black/95 backdrop-blur-md flex items-center justify-center animate-fade-in select-none">
@@ -108,7 +112,7 @@ export const StoryViewerModal: React.FC<StoryViewerModalProps> = ({
           <button
             onClick={onClose}
             className="p-1 rounded-full bg-black/50 text-white/80 hover:text-white transition-colors"
-            aria-label="Fechar story"
+            aria-label={copy("overlay.story-viewer-modal.001")}
           >
             <X className="w-5 h-5" />
           </button>
@@ -136,14 +140,14 @@ export const StoryViewerModal: React.FC<StoryViewerModalProps> = ({
           <button
             onClick={handlePrev}
             className="absolute left-0 top-16 bottom-24 w-1/3 z-20 opacity-0 hover:opacity-20 bg-white/20 flex items-center justify-start pl-2 transition-opacity"
-            aria-label="Story anterior"
+            aria-label={copy("overlay.story-viewer-modal.002")}
           >
             <ChevronLeft className="w-8 h-8 text-white" />
           </button>
           <button
             onClick={handleNext}
             className="absolute right-0 top-16 bottom-24 w-1/3 z-20 opacity-0 hover:opacity-20 bg-white/20 flex items-center justify-end pr-2 transition-opacity"
-            aria-label="Próxima story"
+            aria-label={copy("overlay.story-viewer-modal.003")}
           >
             <ChevronRight className="w-8 h-8 text-white" />
           </button>
@@ -184,7 +188,7 @@ export const StoryViewerModal: React.FC<StoryViewerModalProps> = ({
             className="w-full py-2.5 rounded-full bg-[#00aff0] hover:bg-[#009ed9] text-white font-bold text-xs uppercase tracking-wide flex items-center justify-center gap-2 shadow-lg shadow-[#00aff0]/30 active:scale-[0.98]"
           >
             <Lock className="w-3.5 h-3.5" />
-            <span>Desbloquear VIP da {creator.shortName}</span>
+            <span>{copy("overlay.story-viewer-modal.004", { name: creator.shortName })}</span>
           </button>
         </div>
       </div>

@@ -1,0 +1,15 @@
+{
+  "firestore": [
+    {
+      "database": "ai-studio-sandragomesvippo-c286da2b-c4e2-427a-8481-49470795f0f6",
+      "rules": "firestore.rules"
+    }
+  ],
+  "storage": { "rules": "storage.rules" },
+  "emulators": {
+    "firestore": { "host": "127.0.0.1", "port": 8080 },
+    "storage": { "host": "127.0.0.1", "port": 9199 },
+    "ui": { "enabled": false },
+    "singleProjectMode": true
+  }
+}

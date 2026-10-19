@@ -1,52 +1,111 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
-    // Default-deny catch-all
-    match /{document=**} {
-      allow read, write: if false;
+    function isAdmin() {
+      return request.auth != null
+        && request.auth.token.get('admin', false) == true
+        && request.auth.token.firebase.sign_in_provider != 'anonymous';
     }
 
     function isValidId(id) {
-      return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+      return id is string && id.size() >= 1 && id.size() <= 128
+        && id.matches('^[a-zA-Z0-9_-]+$');
     }
 
-    function incoming() {
-      return request.resource.data;
+    function mediaUrl(value) {
+      return value is string && value.size() <= 4096
+        && (value == '' || value.matches('^(https://|/assets/|assets/).*'));
     }
 
-    function isValidCreator(data) {
-      return (!('id' in data) || (data.id is string && data.id.size() <= 128))
-        && (!('name' in data) || (data.name is string && data.name.size() <= 500))
-        && (!('avatar' in data) || (data.avatar is string && data.avatar.size() <= 2000000));
+    function validCreator(data, creatorId) {
+      return data.keys().hasAll(['id', 'name', 'avatar', 'updatedAt'])
+        && data.keys().hasOnly([
+          'id', 'name', 'shortName', 'handle', 'age', 'city', 'neighborhood',
+          'verified', 'isOnline', 'avatar', 'banner', 'stats', 'bio', 'postCount',
+          'mediaCount', 'previewVideo', 'highlights', 'galleryPhotos', 'voiceNotes',
+          'posts', 'incomingMessage', 'whatsappNumber', 'plans', 'checkoutUrl',
+          'tipCheckoutUrl', 'mimoCheckoutUrls', 'customPaymentButtonText',
+          'bannerVideo', 'videoPaywallSeconds', 'mimoPrices',
+          'preferInternalCheckout', 'createdAt', 'updatedAt'
+        ])
+        && data.id == creatorId
+        && data.name is string && data.name.size() > 0 && data.name.size() <= 500
+        && mediaUrl(data.avatar)
+        && (!('banner' in data) || mediaUrl(data.banner))
+        && (!('previewVideo' in data) || mediaUrl(data.previewVideo))
+        && (!('bannerVideo' in data) || mediaUrl(data.bannerVideo))
+        && (!('bio' in data) || (data.bio is string && data.bio.size() <= 20000))
+        && (!('age' in data) || (data.age is int && data.age >= 18 && data.age <= 120))
+        && (!('plans' in data) || (data.plans is list && data.plans.size() <= 50))
+        && (!('posts' in data) || (data.posts is list && data.posts.size() <= 1000))
+        && (!('highlights' in data) || (data.highlights is list && data.highlights.size() <= 100))
+        && (!('galleryPhotos' in data) || (data.galleryPhotos is list && data.galleryPhotos.size() <= 1000))
+        && (!('voiceNotes' in data) || (data.voiceNotes is list && data.voiceNotes.size() <= 1000))
+        && data.updatedAt is timestamp
+        && (!('createdAt' in data) || data.createdAt is timestamp);
     }
 
-    // Health / connection test rule
-    match /test/{testId} {
-      allow read: if true;
+    function validBank(data) {
+      return data is map
+        && data.keys().hasAll(['bankName', 'beneficiary', 'iban', 'accountNumber', 'unitelMoney', 'multicaixaEntity'])
+        && data.keys().hasOnly(['bankName', 'beneficiary', 'iban', 'accountNumber', 'unitelMoney', 'multicaixaEntity'])
+        && data.bankName is string && data.bankName.size() <= 500
+        && data.beneficiary is string && data.beneficiary.size() <= 500
+        && data.iban is string && data.iban.size() <= 500
+        && data.accountNumber is string && data.accountNumber.size() <= 500
+        && data.unitelMoney is string && data.unitelMoney.size() <= 500
+        && data.multicaixaEntity is string && data.multicaixaEntity.size() <= 500;
     }
 
-    // Creators directory: public browse list, single get, safe updates from admin or seed
+    function validPublicSettings(data) {
+      return data.keys().hasAll(['version', 'copy', 'faqs', 'bankDetails', 'updatedAt'])
+        && data.keys().hasOnly(['version', 'copy', 'faqs', 'bankDetails', 'updatedAt'])
+        && data.version == 1
+        && data.copy is map && data.copy.size() <= 1000
+        && data.faqs is list && data.faqs.size() <= 100
+        && validBank(data.bankDetails)
+        && data.updatedAt is timestamp;
+    }
+
     match /creators/{creatorId} {
-      allow get: if isValidId(creatorId);
-      allow list: if true;
-      allow create, update: if isValidId(creatorId) && isValidCreator(incoming());
-      allow delete: if isValidId(creatorId);
+      allow get, list: if true;
+      allow create, update: if isAdmin() && isValidId(creatorId)
+        && validCreator(request.resource.data, creatorId);
+      allow delete: if isAdmin() && isValidId(creatorId);
     }
 
-    // Real photos & media assets
-    match /photos/{photoId} {
-      allow get: if isValidId(photoId);
-      allow list: if true;
-      allow create, update: if isValidId(photoId);
-      allow delete: if isValidId(photoId);
+    match /settings/public {
+      allow get: if true;
+      allow create, update: if isAdmin() && validPublicSettings(request.resource.data);
+      // The bootstrap marker must not disappear and resurrect fallback content.
+      allow delete: if false;
     }
 
-    // User accounts / subscriber profiles
+    function isOwner(userId) {
+      return request.auth != null && request.auth.uid == userId;
+    }
+
+    function validOwnProfile(data, userId) {
+      return data.keys().hasAll(['uid', 'displayName', 'lastLoginAt'])
+        && data.keys().hasOnly(['uid', 'displayName', 'email', 'photoURL', 'isAnonymous', 'lastLoginAt'])
+        && data.uid == userId
+        && data.displayName is string && data.displayName.size() <= 200
+        && data.lastLoginAt is string && data.lastLoginAt.size() <= 64
+        && (!('email' in data) || (data.email is string
+          && data.email == request.auth.token.get('email', '')))
+        && (!('photoURL' in data) || mediaUrl(data.photoURL))
+        && (!('isAnonymous' in data) || (data.isAnonymous is bool
+          && data.isAnonymous == (request.auth.token.firebase.sign_in_provider == 'anonymous')));
+    }
+
     match /users/{userId} {
-      allow get: if isValidId(userId);
+      allow get: if isOwner(userId);
       allow list: if false;
-      allow create, update: if isValidId(userId);
-      allow delete: if isValidId(userId);
+      allow create, update: if isOwner(userId) && validOwnProfile(request.resource.data, userId);
+      allow delete: if isOwner(userId);
     }
+
+    // Includes legacy /photos, /settings/bank, credentials and subscriber records.
+    match /{document=**} { allow read, write: if false; }
   }
 }

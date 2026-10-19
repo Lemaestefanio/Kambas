@@ -1,3 +1,4 @@
+import { useSiteContent } from '../cms/SiteContent';
 import React, { useState, useEffect } from 'react';
 import { Heart, MessageCircle, Bookmark, MoreHorizontal, Lock, Volume2, VolumeX, Gift, CheckCircle2, Share2 } from 'lucide-react';
 import { Creator, CreatorPost } from '../types';
@@ -18,6 +19,7 @@ const FeedPostMedia: React.FC<FeedPostMediaProps> = ({
   onUnlockClick,
   onToggleMute,
 }) => {
+  const { copy } = useSiteContent();
   const [resolvedVideo, setResolvedVideo] = useState(post.video || '');
   const [resolvedImage, setResolvedImage] = useState(post.image || creatorBanner);
 
@@ -64,7 +66,7 @@ const FeedPostMedia: React.FC<FeedPostMediaProps> = ({
       ) : (
         <img
           src={resolvedImage || post.image || creatorBanner}
-          alt="Conteúdo exclusivo"
+          alt={copy('home.feed.mediaAlt')}
           draggable={false}
           loading="lazy"
           decoding="async"
@@ -83,10 +85,10 @@ const FeedPostMedia: React.FC<FeedPostMediaProps> = ({
             </div>
             <div className="space-y-1">
               <span className="inline-block text-xs font-bold text-white bg-black/75 backdrop-blur-md px-3.5 py-1.5 rounded-full tracking-wide shadow-md">
-                Conteúdo Exclusivo VIP
+                {copy('home.feed.lockedTitle')}
               </span>
               <p className="text-[11px] text-white/80 max-w-[240px]">
-                Toque para desbloquear fotos em alta definição e vídeos sem censura
+                {copy('home.feed.lockedDescription')}
               </p>
             </div>
           </div>
@@ -98,7 +100,7 @@ const FeedPostMedia: React.FC<FeedPostMediaProps> = ({
         <button
           onClick={onToggleMute}
           className="absolute bottom-3 right-3 w-8 h-8 rounded-full bg-black/60 text-white flex items-center justify-center hover:bg-black/80 transition-colors"
-          aria-label="Ativar/desativar som"
+          aria-label={copy('home.feed.sound')}
         >
           {isMuted ? <VolumeX className="w-4 h-4" /> : <Volume2 className="w-4 h-4" />}
         </button>
@@ -120,6 +122,7 @@ export const FeedSection: React.FC<FeedSectionProps> = ({
   onOpenComments,
   onOpenTip,
 }) => {
+  const { copy } = useSiteContent();
   const [likedPosts, setLikedPosts] = useState<Record<number, boolean>>({});
   const [likesCount, setLikesCount] = useState<Record<number, number>>(
     creator.posts.reduce((acc, p, idx) => ({ ...acc, [idx]: p.likes }), {})
@@ -179,7 +182,7 @@ export const FeedSection: React.FC<FeedSectionProps> = ({
 
               <button
                 className="text-slate-400 hover:text-slate-700 p-1.5 rounded-full hover:bg-slate-100 transition-colors"
-                aria-label="Opções da publicação"
+                aria-label={copy('home.feed.options')}
               >
                 <MoreHorizontal className="h-5 w-5" />
               </button>
@@ -211,7 +214,7 @@ export const FeedSection: React.FC<FeedSectionProps> = ({
                   className={`flex items-center gap-1.5 transition-colors ${
                     isLiked ? 'text-rose-500 font-bold' : 'text-slate-600 hover:text-slate-900'
                   }`}
-                  aria-label="Curtir publicação"
+                  aria-label={copy('home.feed.like')}
                 >
                   <Heart className={`h-[18px] w-[18px] ${isLiked ? 'fill-rose-500' : ''}`} />
                   <span className="text-xs font-mono">{currentLikes}</span>
@@ -221,7 +224,7 @@ export const FeedSection: React.FC<FeedSectionProps> = ({
                 <button
                   onClick={() => (onOpenComments ? onOpenComments(post.text) : onUnlockClick())}
                   className="flex items-center gap-1.5 text-slate-600 hover:text-slate-900 transition-colors"
-                  aria-label="Ver comentários"
+                  aria-label={copy('home.feed.comments')}
                 >
                   <MessageCircle className="h-[18px] w-[18px]" />
                   <span className="text-xs font-mono">{post.comments}</span>
@@ -232,10 +235,10 @@ export const FeedSection: React.FC<FeedSectionProps> = ({
                   <button
                     onClick={onOpenTip}
                     className="flex items-center gap-1 text-amber-600 hover:text-amber-700 bg-amber-50 hover:bg-amber-100 px-2 py-0.5 rounded-full text-xs font-semibold transition-colors"
-                    title="Enviar Gorjeta em Kwanzas"
+                    title={copy('home.feed.tipTitle')}
                   >
                     <Gift className="w-3.5 h-3.5" />
-                    <span>Mimo</span>
+                    <span>{copy('home.feed.tip')}</span>
                   </button>
                 )}
               </div>
@@ -246,7 +249,7 @@ export const FeedSection: React.FC<FeedSectionProps> = ({
                 className={`transition-colors p-1 ${
                   isSaved ? 'text-[#00aff0]' : 'text-slate-400 hover:text-slate-700'
                 }`}
-                aria-label="Guardar publicação"
+                aria-label={copy('home.feed.save')}
               >
                 <Bookmark className={`h-[18px] w-[18px] ${isSaved ? 'fill-[#00aff0]' : ''}`} />
               </button>

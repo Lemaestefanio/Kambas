@@ -1,3 +1,4 @@
+import { useSiteContent } from '../cms/SiteContent';
 import React, { useState } from 'react';
 import { Lock, Heart, Eye } from 'lucide-react';
 import { Creator, MediaPhoto } from '../types';
@@ -11,6 +12,7 @@ export const PhotoGalleryGrid: React.FC<PhotoGalleryGridProps> = ({
   creator,
   onUnlockClick,
 }) => {
+  const { copy } = useSiteContent();
   const [selectedPhoto, setSelectedPhoto] = useState<MediaPhoto | null>(null);
 
   return (
@@ -18,10 +20,10 @@ export const PhotoGalleryGrid: React.FC<PhotoGalleryGridProps> = ({
       <div className="flex items-center justify-between">
         <div>
           <h3 className="text-sm font-bold text-slate-900">
-            Galeria de Fotografias Exclusivas
+            {copy('home.photos.title')}
           </h3>
           <p className="text-xs text-slate-500">
-            {creator.stats.photos} fotografias em alta definição
+            {copy('home.photos.count', { count: creator.stats.photos })}
           </p>
         </div>
 
@@ -29,7 +31,7 @@ export const PhotoGalleryGrid: React.FC<PhotoGalleryGridProps> = ({
           onClick={onUnlockClick}
           className="text-xs font-bold text-[#00aff0] hover:underline"
         >
-          Desbloquear Tudo
+          {copy('home.photos.unlock')}
         </button>
       </div>
 
@@ -57,7 +59,7 @@ export const PhotoGalleryGrid: React.FC<PhotoGalleryGridProps> = ({
                   <Lock className="w-4 h-4" />
                 </div>
                 <span className="text-[9px] font-bold text-white bg-black/60 px-2 py-0.5 rounded-full">
-                  VIP
+                  {copy('home.photos.vip')}
                 </span>
               </div>
             ) : (
@@ -95,7 +97,7 @@ export const PhotoGalleryGrid: React.FC<PhotoGalleryGridProps> = ({
                 onClick={() => setSelectedPhoto(null)}
                 className="text-xs font-bold text-slate-400 hover:text-white"
               >
-                Fechar
+                {copy('home.photos.close')}
               </button>
             </div>
           </div>
